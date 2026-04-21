@@ -11,6 +11,13 @@ import type {
   SiteInvite,
   ExtendedCompany} from "../interfaces/Company";
 
+const assertValidPermissionsPayload = (permissions: unknown, context: string): void => {
+  const isObject = permissions !== null && typeof permissions === "object" && !Array.isArray(permissions)
+  if (!isObject) {
+    throw new Error(`${context} must be a plain object`)
+  }
+}
+
 // ========== FIREBASE DATABASE OPERATIONS FOR COMPANY ==========
 
 // ===== COMPANY MANAGEMENT DATABASE FUNCTIONS =====
@@ -118,8 +125,9 @@ export const initializePermissionsInDb = async (companyId: string): Promise<void
  * @param role Role name
  * @param permissions Permission array
  */
-export const updateRolePermissionsInDb = async (companyId: string, role: string, permissions: any): Promise<void> => {
+export const updateRolePermissionsInDb = async (companyId: string, role: string, permissions: unknown): Promise<void> => {
   try {
+    assertValidPermissionsPayload(permissions, "Role permissions")
     const roleRef = ref(db, `companies/${companyId}/permissions/roles/${role}`);
     await set(roleRef, permissions);
   } catch (error) {
@@ -133,8 +141,9 @@ export const updateRolePermissionsInDb = async (companyId: string, role: string,
  * @param department Department name
  * @param permissions Permission array
  */
-export const updateDepartmentPermissionsInDb = async (companyId: string, department: string, permissions: any): Promise<void> => {
+export const updateDepartmentPermissionsInDb = async (companyId: string, department: string, permissions: unknown): Promise<void> => {
   try {
+    assertValidPermissionsPayload(permissions, "Department permissions")
     const deptRef = ref(db, `companies/${companyId}/permissions/departments/${department}`);
     await set(deptRef, permissions);
   } catch (error) {
@@ -148,8 +157,9 @@ export const updateDepartmentPermissionsInDb = async (companyId: string, departm
  * @param userId User ID
  * @param permissions Permission object (UserPermissions) or legacy boolean array
  */
-export const updateUserPermissionsInDb = async (companyId: string, userId: string, permissions: any): Promise<void> => {
+export const updateUserPermissionsInDb = async (companyId: string, userId: string, permissions: unknown): Promise<void> => {
   try {
+    assertValidPermissionsPayload(permissions, "User permissions")
     const userRef = ref(db, `companies/${companyId}/permissions/users/${userId}`);
     await set(userRef, permissions);
   } catch (error) {
@@ -163,9 +173,10 @@ export const updateUserPermissionsInDb = async (companyId: string, userId: strin
 export const updateEmployeePermissionsInDb = async (
   companyId: string,
   employeeId: string,
-  permissions: any,
+  permissions: unknown,
 ): Promise<void> => {
   try {
+    assertValidPermissionsPayload(permissions, "Employee permissions")
     const empRef = ref(db, `companies/${companyId}/permissions/employees/${employeeId}`);
     await set(empRef, permissions);
   } catch (error) {
@@ -221,9 +232,12 @@ export const updateDefaultDepartmentInDb = async (companyId: string, defaultDepa
  */
 export const updateDefaultPermissionsInDb = async (
   companyId: string,
-  defaultPermissions: any,
+  defaultPermissions: unknown,
 ): Promise<void> => {
   try {
+    if (defaultPermissions !== undefined && defaultPermissions !== null) {
+      assertValidPermissionsPayload(defaultPermissions, "Default permissions")
+    }
     const pRef = ref(db, `companies/${companyId}/permissions/defaultPermissions`);
     await set(pRef, defaultPermissions || { modules: {} });
   } catch (error) {
@@ -437,14 +451,12 @@ export const deleteSiteFromDb = async (companyId: string, siteId: string): Promi
     const siteRef = ref(db, `companies/${companyId}/sites/${siteId}`);
     await remove(siteRef);
 
-    // Ensure cache cannot resurrect deleted data
-    invalidateSitesCache(companyId)
-
     // Verify deletion actually took effect (rules/network issues can otherwise look like "it worked")
     const after = await get(siteRef)
     if (after.exists()) {
       throw new Error("Delete did not persist (site still exists after remove)")
     }
+    invalidateSitesCache(companyId)
   } catch (error) {
     throw new Error(`Error deleting site: ${error}`);
   }
@@ -459,6 +471,21 @@ export const deleteSiteFromDb = async (companyId: string, siteId: string): Promi
 // Using Map (in-memory) instead of localStorage to avoid quota issues
 const sitesCache = new Map<string, { data: Site[], timestamp: number }>();
 const SITES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const filterValidSites = (sites: Site[]): Site[] =>
+  (sites || []).filter((site: Site) => {
+    const siteName = site.name || (site as any).siteName || ''
+    return siteName.trim().length > 0
+  })
+const normalizeSiteShape = (site: Site): Site => {
+  const normalizedName = (site as any).name || (site as any).siteName || ""
+  const normalizedDescription = (site as any).description || (site as any).siteDescription || ""
+  return {
+    ...site,
+    name: normalizedName,
+    description: normalizedDescription,
+  } as Site
+}
+const normalizeAndFilterSites = (sites: Site[]): Site[] => filterValidSites((sites || []).map(normalizeSiteShape))
 
 // Allow callers (e.g., after mutations) to invalidate in-memory sites cache so UI doesn't resurrect stale data
 export const invalidateSitesCache = (companyId?: string): void => {
@@ -471,14 +498,18 @@ export const invalidateSitesCache = (companyId?: string): void => {
 
 // Clear cache periodically to prevent memory issues
 if (typeof window !== 'undefined') {
-  setInterval(() => {
+  const cleanupKey = "__companySitesCacheCleanupInterval__"
+  const globalScope = globalThis as typeof globalThis & { [cleanupKey]?: ReturnType<typeof setInterval> }
+  if (!globalScope[cleanupKey]) {
+    globalScope[cleanupKey] = setInterval(() => {
     const now = Date.now();
     for (const [key, value] of sitesCache.entries()) {
       if (now - value.timestamp > SITES_CACHE_TTL * 2) {
         sitesCache.delete(key);
       }
     }
-  }, 10 * 60 * 1000); // Clean every 10 minutes
+    }, 10 * 60 * 1000); // Clean every 10 minutes
+  }
 }
 
 /**
@@ -500,11 +531,7 @@ export const getSitesFromDb = async (
         const { SessionPersistence } = await import('../../frontend/utils/sessionPersistence');
         const sessionCached = SessionPersistence.getCachedSites(companyId);
         if (sessionCached && sessionCached.length > 0) {
-          // Filter out empty sites from cache (sites with no name or only whitespace)
-          const validCachedSites = sessionCached.filter((site: Site) => {
-            const siteName = site.name || (site as any).siteName || '';
-            return siteName.trim().length > 0;
-          });
+          const validCachedSites = normalizeAndFilterSites(sessionCached);
           
           // Validate that cached sites have subsites (new cache format)
           // If they don't have subsites, they're from old cache and we should skip them
@@ -526,12 +553,11 @@ export const getSitesFromDb = async (
     // STEP 2: Check in-memory cache (fast, but lost on page reload)
     const cached = sitesCache.get(companyId);
     if (!bypassCache && cached && Date.now() - cached.timestamp < SITES_CACHE_TTL) {
-      // Filter out empty sites from cache
-      const validCachedSites = cached.data.filter((site: Site) => {
-        const siteName = site.name || (site as any).siteName || '';
-        return siteName.trim().length > 0;
-      });
+      const validCachedSites = normalizeAndFilterSites(cached.data);
       if (validCachedSites.length > 0) {
+        if (validCachedSites.length !== cached.data.length) {
+          sitesCache.set(companyId, { data: validCachedSites, timestamp: Date.now() });
+        }
         return validCachedSites;
       }
       // If all cached sites were empty, continue to fetch from Firebase
@@ -558,7 +584,7 @@ export const getSitesFromDb = async (
       
       // CRITICAL OPTIMIZATION: Extract minimal data but keep subsites (needed for SubsiteDropdown)
       // Include subsites but only with minimal fields (ID, name) - exclude other nested data
-      const sites = Object.entries(sitesData)
+      const rawSites = Object.entries(sitesData)
         .map(([siteId, data]: [string, any]) => {
           const minimalSite: any = {
             siteID: siteId,
@@ -604,11 +630,7 @@ export const getSitesFromDb = async (
           
           return minimalSite as Site;
         })
-        // Filter out empty sites (sites with no name or only whitespace)
-        .filter((site: Site) => {
-          const siteName = site.name || (site as any).siteName || '';
-          return siteName.trim().length > 0;
-        });
+      const sites = normalizeAndFilterSites(rawSites);
       
       // const processTime = performance.now() - processStartTime; // Unused performance metric
       
@@ -626,7 +648,7 @@ export const getSitesFromDb = async (
     // Return cached data even if expired on error - better UX than failing
     const cached = sitesCache.get(companyId);
     if (cached) {
-      return cached.data;
+      return normalizeAndFilterSites(cached.data);
     }
     // If no cache and error, return empty array instead of throwing
     return [];
@@ -718,14 +740,12 @@ export const deleteSubsiteFromDb = async (companyId: string, siteId: string, sub
     const subsiteRef = ref(db, `companies/${companyId}/sites/${siteId}/subsites/${subsiteId}`);
     await remove(subsiteRef);
 
-    // Ensure cache cannot resurrect deleted data
-    invalidateSitesCache(companyId)
-
     // Verify deletion actually took effect
     const after = await get(subsiteRef)
     if (after.exists()) {
       throw new Error("Delete did not persist (subsite still exists after remove)")
     }
+    invalidateSitesCache(companyId)
   } catch (error) {
     throw new Error(`Error deleting subsite: ${error}`);
   }
@@ -952,13 +972,14 @@ export const createChecklistCompletionInDb = async (completionsPath: string, com
 
     // Save the completion data (including checklistId for backward compatibility and easier querying)
     // The checklistId is also in the path, but we keep it in the data for easier access
-    await set(newCompletionRef, completion);
+    const sanitizedCompletion = sanitizeForRtdb(completion)
+    await set(newCompletionRef, sanitizedCompletion);
 
     debugVerbose("createChecklistCompletionInDb: saved", { completionId, path: `${fullPath}/${completionId}` });
     
     // Return the completion with id
     return {
-      ...completion,
+      ...(sanitizedCompletion as Omit<ChecklistCompletion, "id">),
       id: completionId,
     };
   } catch (error) {
@@ -978,7 +999,9 @@ export const deleteChecklistCompletionFromDb = async (
   checklistId: string,
   completionId: string,
 ): Promise<void> => {
-  if (!completionsPath || !completionId) return
+  if (!completionsPath || !completionId) {
+    throw new Error("completionsPath and completionId are required")
+  }
   try {
     const groupedRef = ref(db, `${completionsPath}/${checklistId}/${completionId}`)
     await remove(groupedRef)

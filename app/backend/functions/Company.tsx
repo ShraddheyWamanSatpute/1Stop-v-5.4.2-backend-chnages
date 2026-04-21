@@ -55,18 +55,29 @@ import {
   getSiteInvitesFromDb,
   getSiteInviteByCodeFromDb,
   updateSiteInviteInDb,
-  addUserToCompanyInDb,
   getUserCompaniesFromDb,
   getCompanyUsersFromDb,
   createEmployeeJoinCodeInDb,
   getEmployeeJoinCodesFromDb,
   getEmployeeJoinCodeByCodeFromDb,
   revokeEmployeeJoinCodeInDb,
-  setCompanyUserInDb
 } from "../data/Company"
 import { setCurrentCompany, updatePersonalSettings } from "../data/Settings"
-import { db, ref, get, update } from "../services/Firebase"
+import { db, ref, get, update, runTransaction } from "../services/Firebase"
 import { callCallableProxy } from "../services/callableProxy"
+
+const linkUserAndCompanyAtomically = async (
+  userId: string,
+  companyId: string,
+  userCompanyData: Record<string, any>,
+  companyUserData: Record<string, any>,
+): Promise<void> => {
+  const updates: Record<string, any> = {
+    [`users/${userId}/companies/${companyId}`]: userCompanyData,
+    [`companies/${companyId}/users/${userId}`]: companyUserData,
+  }
+  await update(ref(db), updates)
+}
 
 /**
  * Helper function to search for an employee across all sites and subsites in a company
@@ -834,13 +845,16 @@ export const acceptSiteInvite = async (
       joinedAt: Date.now(),
     }
     
-    await addUserToCompanyInDb(userId, invite.companyID, companyData)
-    // Mirror membership under company/users for faster queries elsewhere
-    await setCompanyUserInDb(invite.companyID, userId, {
+    await linkUserAndCompanyAtomically(
+      userId,
+      invite.companyID,
+      companyData,
+      {
       role: invite.role,
       department: invite.department,
       joinedAt: Date.now(),
-    })
+      },
+    )
     
     // Set current company for the user so the app selects it immediately
     await setCurrentCompany(userId, invite.companyID)
@@ -877,7 +891,19 @@ export const getSiteInviteByCode = async (code: string): Promise<SiteInvite | nu
 // ========== USER ↔ COMPANY FUNCTIONS ==========
 
 export const addUserToCompany = async (userId: string, companyId: string, companyData: any): Promise<void> => {
-  await addUserToCompanyInDb(userId, companyId, companyData)
+  const companyUserData = {
+    role: companyData?.role,
+    department: companyData?.department,
+    joinedAt: companyData?.joinedAt || Date.now(),
+    email: companyData?.email || "",
+    displayName: companyData?.displayName || "",
+    employeeId: companyData?.employeeId,
+    roleId: companyData?.roleId,
+    siteId: companyData?.siteId || null,
+    subsiteId: companyData?.subsiteId || null,
+    employeePath: companyData?.employeePath,
+  }
+  await linkUserAndCompanyAtomically(userId, companyId, companyData, companyUserData)
 }
 
 export const getUserCompanies = async (
@@ -1078,6 +1104,10 @@ export const acceptEmployeeInvite = async (
     }
     if (employeeEmail) employeeUpdate.email = employeeEmail
     // Employee records are encrypted server-side. Upsert via Cloud Functions.
+    const latestEmployeeRes: any = await callCallableProxy("hrGetEmployee", { hrPath: basePath, employeeId })
+    if (!latestEmployeeRes?.data?.employee) {
+      return { success: false, message: "Employee record was removed before invite acceptance could complete" }
+    }
     await callCallableProxy("hrUpsertEmployee", { hrPath: basePath, employeeId, employee: employeeUpdate })
 
     // Sync key employee data into the user's personal settings (so the app has a proper profile immediately)
@@ -1111,8 +1141,6 @@ export const acceptEmployeeInvite = async (
       joinedAt: Date.now(),
     }
     
-    await addUserToCompanyInDb(userId, companyId, companyData)
-    
     // Mirror membership under company/users with actual location
     // Use HR role and department (owner overrides if role is owner)
     const companyUserData: {
@@ -1138,22 +1166,30 @@ export const acceptEmployeeInvite = async (
     if (actualSubsiteId) companyUserData.subsiteId = actualSubsiteId
     if (roleId) companyUserData.roleId = roleId
     companyUserData.employeePath = basePath
-    await setCompanyUserInDb(companyId, userId, companyUserData)
+    await linkUserAndCompanyAtomically(userId, companyId, companyData, companyUserData)
     
     // Set current company for the user
     await setCurrentCompany(userId, companyId)
     
     // Update the join code with the actual location where employee was found and mark as used
     const joinCodeRef = ref(db, `joinCodes/${inviteCode}`)
-    await update(joinCodeRef, {
-      actualSiteId: actualSiteId || null,
-      actualSubsiteId: actualSubsiteId || null,
-      actualEmployeePath: basePath,
-      used: true,
-      usedAt: Date.now(),
-      usedBy: userId,
-      updatedAt: Date.now()
+    const joinCodeTxn = await runTransaction(joinCodeRef, (current: any) => {
+      if (!current || current.used || current.revoked) return current
+      if (current.expiresAt && Date.now() > current.expiresAt) return current
+      return {
+        ...current,
+        actualSiteId: actualSiteId || null,
+        actualSubsiteId: actualSubsiteId || null,
+        actualEmployeePath: basePath,
+        used: true,
+        usedAt: Date.now(),
+        usedBy: userId,
+        updatedAt: Date.now(),
+      }
     })
+    if (!joinCodeTxn.committed || !joinCodeTxn.snapshot.exists() || !joinCodeTxn.snapshot.val()?.used) {
+      return { success: false, message: "Invite became invalid while processing. Please retry with a new invite." }
+    }
     
     return {
       success: true,
@@ -1257,6 +1293,9 @@ export const fetchChecklistCompletions = async (
 ): Promise<ChecklistCompletion[]> => {
   try {
     const { db, ref, get } = await import("../services/Firebase")
+    const MAX_SITES_SCAN = 100
+    const MAX_SUBSITES_PER_SITE_SCAN = 200
+    const MAX_COMPLETIONS_SCAN = 10000
     
     if (!siteId) {
       // If no siteID provided, fetch from all sites
@@ -1269,9 +1308,18 @@ export const fetchChecklistCompletions = async (
 
       const allCompletions: ChecklistCompletion[] = []
       const sitesData = sitesSnapshot.val()
+      const siteKeys = Object.keys(sitesData || {})
+      if (siteKeys.length > MAX_SITES_SCAN) {
+        throw new Error(`Checklist completion query aborted: ${siteKeys.length} sites exceeds max scan of ${MAX_SITES_SCAN}`)
+      }
+      const assertNotTooMany = () => {
+        if (allCompletions.length > MAX_COMPLETIONS_SCAN) {
+          throw new Error(`Checklist completion query aborted: completion scan exceeded ${MAX_COMPLETIONS_SCAN} items`)
+        }
+      }
 
       // Iterate through all sites
-      for (const currentSiteID of Object.keys(sitesData)) {
+      for (const currentSiteID of siteKeys) {
         // Fetch completions from site level
         const siteCompletionsRef = ref(db, `companies/${companyId}/sites/${currentSiteID}/checklistCompletions`)
         const siteCompletionsSnapshot = await get(siteCompletionsRef)
@@ -1286,6 +1334,7 @@ export const fetchChecklistCompletions = async (
                   id: completionId,
                   checklistId: cId,
                 })
+                assertNotTooMany()
               })
             }
           })
@@ -1297,8 +1346,14 @@ export const fetchChecklistCompletions = async (
 
         if (subsitesSnapshot.exists()) {
           const subsitesData = subsitesSnapshot.val()
+          const subsiteKeys = Object.keys(subsitesData || {})
+          if (subsiteKeys.length > MAX_SUBSITES_PER_SITE_SCAN) {
+            throw new Error(
+              `Checklist completion query aborted: site "${currentSiteID}" has ${subsiteKeys.length} subsites (max ${MAX_SUBSITES_PER_SITE_SCAN})`,
+            )
+          }
 
-          for (const currentSubsiteID of Object.keys(subsitesData)) {
+          for (const currentSubsiteID of subsiteKeys) {
             const subsiteCompletionsRef = ref(
               db,
               `companies/${companyId}/sites/${currentSiteID}/subsites/${currentSubsiteID}/checklistCompletions`,
@@ -1315,6 +1370,7 @@ export const fetchChecklistCompletions = async (
                       id: completionId,
                       checklistId: cId,
                     })
+                    assertNotTooMany()
                   })
                 }
               })

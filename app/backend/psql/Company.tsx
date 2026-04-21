@@ -39,6 +39,10 @@ function fromPayload<T>(record: any): T {
   return record.payload as T
 }
 
+throw new Error(
+  '[psql/Company] Unimplemented provider module. Select the Firebase/Supabase provider or implement Company psql exports before runtime use.',
+)
+
 // TODO: Implement export
 
 // TODO: Implement export

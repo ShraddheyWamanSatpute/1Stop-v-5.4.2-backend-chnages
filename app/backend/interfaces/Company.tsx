@@ -125,7 +125,7 @@ export interface Site {
     country: string
   }
   isMainSite?: boolean
-  subsites: Record<string, Subsite>
+  subsites?: Record<string, Subsite>
   teams: Record<string, Team>
   createdAt: number
   updatedAt: number
@@ -243,7 +243,6 @@ export interface CompanyChecklist {
     daysOfWeek?: number[]
     startTime?: string
     endTime?: string
-    timeZone?: string
     // Expiration window after closing time (hours).
     // UI + downstream logic treats this as hours; keep legacy numeric values compatible.
     expireTime?: number
@@ -446,8 +445,8 @@ export interface ExtendedCompany {
   companySize: string
   companyType: "hospitality" | "supplier" | "other"
   companyStatus: string
-  companyCreated: string
-  companyUpdated: string
+  companyCreated: string | number
+  companyUpdated: string | number
   permissions: CompanyPermissions
   dataManagement: DataManagementConfig
   joinCode?: string

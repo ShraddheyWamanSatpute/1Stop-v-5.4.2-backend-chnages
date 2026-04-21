@@ -19,11 +19,26 @@ const query = (params: Record<string, string | number | undefined>) => {
 
 const normalizeDataManagement = (value: any) => {
   if (!value || typeof value !== "object") return value
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(value, key)
   return {
-    accessibleModules: value.accessibleModules || {},
-    accessibleSites: Array.isArray(value.accessibleSites) ? value.accessibleSites : [],
-    accessibleSubsites: Array.isArray(value.accessibleSubsites) ? value.accessibleSubsites : [],
+    accessibleModules: hasOwn("accessibleModules")
+      ? (value.accessibleModules === null ? null : (value.accessibleModules || {}))
+      : {},
+    accessibleSites: hasOwn("accessibleSites")
+      ? (value.accessibleSites === null ? null : (Array.isArray(value.accessibleSites) ? value.accessibleSites : []))
+      : [],
+    accessibleSubsites: hasOwn("accessibleSubsites")
+      ? (value.accessibleSubsites === null ? null : (Array.isArray(value.accessibleSubsites) ? value.accessibleSubsites : []))
+      : [],
   }
+}
+
+const requireResultId = (result: any, operation: string): string => {
+  const id = String(result?.id || "").trim()
+  if (!id) {
+    throw new Error(`${operation} succeeded without returning an id`)
+  }
+  return id
 }
 
 export const invalidateSitesCache: typeof firebaseProvider.invalidateSitesCache = (companyId?: string) => {
@@ -42,11 +57,15 @@ const patchPermissions = async (companyId: string, path: string[], value: any) =
 }
 
 export const createCompanyInDb: typeof firebaseProvider.createCompanyInDb = async (companyData) => {
-  const result = await authedDataFetch(`/company/companies`, {
-    method: "POST",
-    body: JSON.stringify({ data: companyData }),
-  })
-  return String(result?.id || "")
+  try {
+    const result = await authedDataFetch(`/company/companies`, {
+      method: "POST",
+      body: JSON.stringify({ data: companyData }),
+    })
+    return requireResultId(result, "createCompanyInDb")
+  } catch (error) {
+    throw new Error(`Error creating company: ${error}`)
+  }
 }
 
 export const updateCompanyInDb: typeof firebaseProvider.updateCompanyInDb = async (companyId: string, updates) => {
@@ -213,12 +232,16 @@ export const getConfigFromDb: typeof firebaseProvider.getConfigFromDb = async (c
 }
 
 export const createSiteInDb: typeof firebaseProvider.createSiteInDb = async (companyId: string, siteData) => {
-  invalidateSitesCache(companyId)
-  const result = await authedDataFetch(`/company/companies/${encodeURIComponent(companyId)}/sites`, {
-    method: "POST",
-    body: JSON.stringify({ data: siteData }),
-  })
-  return String(result?.id || "")
+  try {
+    invalidateSitesCache(companyId)
+    const result = await authedDataFetch(`/company/companies/${encodeURIComponent(companyId)}/sites`, {
+      method: "POST",
+      body: JSON.stringify({ data: siteData }),
+    })
+    return requireResultId(result, "createSiteInDb")
+  } catch (error) {
+    throw new Error(`Error creating site: ${error}`)
+  }
 }
 
 export const updateSiteInDb: typeof firebaseProvider.updateSiteInDb = async (
@@ -270,15 +293,19 @@ export const createSubsiteInDb: typeof firebaseProvider.createSubsiteInDb = asyn
   siteId: string,
   subsiteData,
 ) => {
-  invalidateSitesCache(companyId)
-  const result = await authedDataFetch(
-    `/company/companies/${encodeURIComponent(companyId)}/sites/${encodeURIComponent(siteId)}/subsites`,
-    {
-      method: "POST",
-      body: JSON.stringify({ data: subsiteData }),
-    },
-  )
-  return String(result?.id || "")
+  try {
+    invalidateSitesCache(companyId)
+    const result = await authedDataFetch(
+      `/company/companies/${encodeURIComponent(companyId)}/sites/${encodeURIComponent(siteId)}/subsites`,
+      {
+        method: "POST",
+        body: JSON.stringify({ data: subsiteData }),
+      },
+    )
+    return requireResultId(result, "createSubsiteInDb")
+  } catch (error) {
+    throw new Error(`Error creating subsite: ${error}`)
+  }
 }
 
 export const updateSubsiteInDb: typeof firebaseProvider.updateSubsiteInDb = async (

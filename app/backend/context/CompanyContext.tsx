@@ -59,7 +59,6 @@ import {
   createCompanyInviteInDb,
   getCompanyInviteByCodeFromDb,
   updateCompanyInviteInDb,
-  setCompanyUserInDb,
   getCompanyFromDb,
   updateCompanyInDb,
   fetchCompanyReports as fetchCompanyReportsFn,
@@ -110,8 +109,8 @@ interface Company {
   companySize: string
   companyType: string
   companyStatus: string
-  companyCreated: string
-  companyUpdated: string
+  companyCreated: string | number
+  companyUpdated: string | number
   permissions: CompanyPermissions
   joinCode?: string
   joinCodeExpiry?: number
@@ -979,6 +978,15 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   /** Dedupe parallel getChecklistCompletions calls (e.g. React Strict Mode double effect). */
   const checklistCompletionsInflightRef = React.useRef<Map<string, Promise<any[]>>>(new Map())
+  const latestSelectionRef = React.useRef<{ companyId?: string; siteId?: string; subsiteId?: string }>({})
+
+  useEffect(() => {
+    latestSelectionRef.current = {
+      companyId: state.companyID || undefined,
+      siteId: state.selectedSiteID || undefined,
+      subsiteId: state.selectedSubsiteID || undefined,
+    }
+  }, [state.companyID, state.selectedSiteID, state.selectedSubsiteID])
 
   const makeCompanyTabPrefetchKey = useCallback((companyId: string, siteId?: string | null, subsiteId?: string | null) => {
     return `${companyId || ""}|${siteId || ""}|${subsiteId || ""}`
@@ -1444,8 +1452,15 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
             // Site is selected - load checklist data immediately in background (non-blocking)
             // This ensures data is ready BEFORE user navigates to ChecklistHistory tab
             // Defer to next tick to ensure UI renders first
+            const prefetchCompanyId = companyID
+            const prefetchSiteId = restoredSiteId || undefined
+            const prefetchSubsiteId = restoredSubsiteId || undefined
             setTimeout(() => {
-              prefetchCompanyTabData(companyID, restoredSiteId, restoredSubsiteId)
+              const latest = latestSelectionRef.current
+              if (latest.companyId !== prefetchCompanyId || latest.siteId !== prefetchSiteId || latest.subsiteId !== prefetchSubsiteId) {
+                return
+              }
+              prefetchCompanyTabData(prefetchCompanyId, prefetchSiteId, prefetchSubsiteId)
                 .catch(() => {}) // Silent fail - data will load when available
             }, 0)
           }
@@ -1576,7 +1591,11 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       // Load subsite-specific dataManagement configuration
       let subsiteDataManagement: DataManagementConfig | undefined = undefined
-      if (state.companyID && state.selectedSiteID) {
+      if (!state.selectedSiteID) {
+        dispatch({ type: "SELECT_SUBSITE", payload: { subsiteID, subsiteName } })
+        return
+      }
+      if (state.companyID) {
         try {
           const subsiteData = await getSubsite(state.companyID, state.selectedSiteID, subsiteID)
           if (subsiteData?.dataManagement) {
@@ -1594,7 +1613,8 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
             }
           }
         } catch (error) {
-          // silent
+          const message = error instanceof Error ? error.message : "Failed to load subsite settings"
+          dispatch({ type: "SET_ERROR", payload: message })
         }
       }
       
@@ -1975,8 +1995,16 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         prefetchInProgressRef.current = true
         // Load checklist data immediately in background - non-blocking
         // Defer to next tick to ensure UI renders first
+        const prefetchCompanyId = state.companyID
+        const prefetchSiteId = state.selectedSiteID
+        const prefetchSubsiteId = state.selectedSubsiteID || undefined
         setTimeout(() => {
-          prefetchCompanyTabData(state.companyID, state.selectedSiteID, state.selectedSubsiteID)
+          const latest = latestSelectionRef.current
+          if (latest.companyId !== prefetchCompanyId || latest.siteId !== prefetchSiteId || latest.subsiteId !== prefetchSubsiteId) {
+            prefetchInProgressRef.current = false
+            return
+          }
+          prefetchCompanyTabData(prefetchCompanyId, prefetchSiteId, prefetchSubsiteId)
             .catch(() => {}) // Silent fail - data will load when available
             .finally(() => {
               prefetchInProgressRef.current = false
@@ -2888,27 +2916,15 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   )
 
   const fetchChecklistCompletionsByUser = useCallback(async (userId: string): Promise<any[]> => {
-    const paths = getChecklistPaths()
-    if (paths.length === 0) return []
-    
+    if (!state.companyID) return []
     try {
-      for (const path of paths) {
-        try {
-          const completionsPath = `${path}/checklistCompletions`
-          const chunk = await fetchChecklistCompletionsFromDb(completionsPath)
-          const userCompletions = chunk.filter((c: any) => c.completedBy === userId)
-          if (userCompletions.length > 0) {
-            return userCompletions
-          }
-        } catch (error) {
-          // silent
-        }
-      }
-      return []
+      const completionsPath = `companies/${state.companyID}/checklistCompletions`
+      const chunk = await fetchChecklistCompletionsFromDb(completionsPath)
+      return (chunk || []).filter((c: any) => c.completedBy === userId)
     } catch (error) {
       return []
     }
-  }, [getChecklistPaths])
+  }, [state.companyID])
 
   const fetchUserProfile = useCallback(async (userId: string): Promise<any> => {
     return await fetchUserProfileFn(userId)
@@ -3809,12 +3825,6 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         joinedAt: now,
         isDefault: true,
         accessLevel: "company",
-      })
-
-      await setCompanyUserInDb(companyId, effectiveUserId, {
-        role,
-        department,
-        joinedAt: now,
         email: currentUser.email || "",
         displayName: currentUser.displayName || "",
       })
