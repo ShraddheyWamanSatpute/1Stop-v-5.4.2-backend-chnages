@@ -200,317 +200,172 @@ export const useHRData = (basePath: string) => {
       return
     }
 
-    const loadHRData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    setLoading(true)
+    setError(null)
 
-        // Set up real-time listeners for all HR data using basePath parameter
-        const employeesRef = ref(db, `${basePath}/employees`)
-        const departmentsRef = ref(db, `${basePath}/departments`)
-        const rolesRef = ref(db, `${basePath}/roles`)
-        const timeOffRef = ref(db, `${basePath}/timeOffRequests`)
-        const performanceRef = ref(db, `${basePath}/performanceReviews`)
-        const trainingRef = ref(db, `${basePath}/trainingRecords`)
-        const announcementsRef = ref(db, `${basePath}/announcements`)
-        const eventsRef = ref(db, `${basePath}/events`)
-        const benefitsRef = ref(db, `${basePath}/benefits`)
-        const warningsRef = ref(db, `${basePath}/warnings`)
-        const recruitmentsRef = ref(db, `${basePath}/recruitments`)
-        const complianceRef = ref(db, `${basePath}/compliance`)
-        const diversityRef = ref(db, `${basePath}/diversityMetrics`)
-        const analyticsRef = ref(db, `${basePath}/analytics`)
-        const schedulesRef = ref(db, `${basePath}/schedules`)
-        const clockInOutRef = ref(db, `${basePath}/clockInOut`)
-        // Payroll records are stored under "payrolls" (new). Keep legacy "payroll" fallback.
-        const payrollRef = ref(db, `${basePath}/payrolls`)
+    // Build all RTDB refs synchronously so cleanup can run synchronously.
+    const employeesRef = ref(db, `${basePath}/employees`)
+    const departmentsRef = ref(db, `${basePath}/departments`)
+    const rolesRef = ref(db, `${basePath}/roles`)
+    const timeOffRef = ref(db, `${basePath}/timeOffs`)
+    const performanceRef = ref(db, `${basePath}/performanceReviews`)
+    const trainingRef = ref(db, `${basePath}/trainings`)
+    const announcementsRef = ref(db, `${basePath}/announcements`)
+    const eventsRef = ref(db, `${basePath}/events`)
+    const benefitsRef = ref(db, `${basePath}/benefits`)
+    const warningsRef = ref(db, `${basePath}/warnings`)
+    const recruitmentsRef = ref(db, `${basePath}/recruitments`)
+    const complianceRef = ref(db, `${basePath}/compliance`)
+    const diversityRef = ref(db, `${basePath}/diversityMetrics`)
+    const analyticsRef = ref(db, `${basePath}/analytics`)
+    const schedulesRef = ref(db, `${basePath}/schedules`)
+    const attendancesRef = ref(db, `${basePath}/attendances`)
+    const payrollRef = ref(db, `${basePath}/payrolls`)
 
-        // Set up listeners
-        const unsubscribeEmployees = onValue(employeesRef, (snapshot) => {
-          if (snapshot.exists()) {
-            // Employees are encrypted at rest; fetch decrypted list from Cloud Functions.
-            callCallableProxy<{ employees: Employee[] }>("hrListEmployees", { hrPath: basePath })
-              .then((res: any) => setEmployees((res?.data?.employees || []) as Employee[]))
-              .catch((err: any) => {
-                // If the secure HR callable isn't deployed (common in dev/new envs),
-                // fall back to raw RTDB so the section stays usable.
-                if (Number(err?.status) === 404) {
-                  const data = snapshot.val() || {}
-                  const list = Object.entries(data).map(([id, employee]) => ({
-                    id,
-                    ...(employee as Omit<Employee, "id">),
-                  }))
-                  setEmployees(list as Employee[])
-                  return
-                }
-                setEmployees([])
-              })
-          } else {
-            setEmployees([])
-          }
-        })
-
-        const unsubscribeDepartments = onValue(departmentsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const departmentsList = Object.entries(data).map(([id, department]) => ({
-              id,
-              ...(department as Omit<Department, "id">),
-            }))
-            setDepartments(departmentsList)
-          } else {
-            setDepartments([])
-          }
-        })
-
-        const unsubscribeRoles = onValue(rolesRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const rolesList = Object.entries(data).map(([id, role]) => ({
-              id,
-              ...(role as Omit<Role, "id">),
-            }))
-            setRoles(rolesList)
-          } else {
-            setRoles([])
-          }
-        })
-
-        const unsubscribeTimeOff = onValue(timeOffRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const timeOffList = Object.entries(data).map(([id, request]) => ({
-              id,
-              ...(request as Omit<TimeOffRequest, "id">),
-            }))
-            setTimeOffRequests(timeOffList)
-          } else {
-            setTimeOffRequests([])
-          }
-        })
-
-        const unsubscribePerformance = onValue(performanceRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const performanceList = Object.entries(data).map(([id, review]) => ({
-              id,
-              ...(review as Omit<PerformanceReview, "id">),
-            }))
-            setPerformanceReviews(performanceList)
-          } else {
-            setPerformanceReviews([])
-          }
-        })
-
-        const unsubscribeTraining = onValue(trainingRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const trainingList = Object.entries(data).map(([id, training]) => ({
-              id,
-              ...(training as Omit<TrainingRecord, "id">),
-            }))
-            setTrainingRecords(trainingList)
-          } else {
-            setTrainingRecords([])
-          }
-        })
-
-        const unsubscribeAnnouncements = onValue(announcementsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const announcementsList = Object.entries(data).map(([id, announcement]) => ({
-              id,
-              ...(announcement as Omit<Announcement, "id">),
-            }))
-            setAnnouncements(announcementsList)
-          } else {
-            setAnnouncements([])
-          }
-        })
-
-        const unsubscribeEvents = onValue(eventsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const eventsList = Object.entries(data).map(([id, event]) => ({
-              id,
-              ...(event as Omit<Event, "id">),
-            }))
-            setEvents(eventsList)
-          } else {
-            setEvents([])
-          }
-        })
-
-        const unsubscribeBenefits = onValue(benefitsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const benefitsList = Object.entries(data).map(([id, benefit]) => ({
-              id,
-              ...(benefit as Omit<Benefit, "id">),
-            }))
-            setBenefits(benefitsList)
-          } else {
-            setBenefits([])
-          }
-        })
-
-        const unsubscribeWarnings = onValue(warningsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const warningsList = Object.entries(data).map(([id, warning]) => ({
-              id,
-              ...(warning as Omit<Warning, "id">),
-            }))
-            setWarnings(warningsList)
-          } else {
-            setWarnings([])
-          }
-        })
-
-        const unsubscribeRecruitments = onValue(recruitmentsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const recruitmentsList = Object.entries(data).map(([id, recruitment]) => ({
-              id,
-              ...(recruitment as Omit<Recruitment, "id">),
-            }))
-            setRecruitments(recruitmentsList)
-          } else {
-            setRecruitments([])
-          }
-        })
-
-        const unsubscribeCompliance = onValue(complianceRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const complianceList = Object.entries(data).map(([id, compliance]) => ({
-              id,
-              ...(compliance as Omit<Compliance, "id">),
-            }))
-            setCompliance(complianceList)
-          } else {
-            setCompliance([])
-          }
-        })
-
-        const unsubscribeDiversity = onValue(diversityRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const diversityList = Object.entries(data).map(([id, diversity]) => ({
-              id,
-              ...(diversity as Omit<DiversityMetric, "id">),
-            }))
-            setDiversityMetrics(diversityList)
-          } else {
-            setDiversityMetrics([])
-          }
-        })
-
-        const unsubscribeAnalytics = onValue(analyticsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            setAnalytics(snapshot.val() as HRAnalytics)
-          } else {
-            setAnalytics(null)
-          }
-        })
-
-        const unsubscribeSchedules = onValue(schedulesRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const schedulesList = Object.entries(data).map(([id, schedule]) => ({
-              id,
-              ...(schedule as Omit<Schedule, "id">),
-            }))
-            setSchedules(schedulesList)
-          } else {
-            setSchedules([])
-          }
-        })
-
-        const unsubscribeClockInOut = onValue(clockInOutRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val()
-            const clockInOutList = Object.entries(data).map(([id, clockInOut]) => ({
-              id,
-              ...(clockInOut as Omit<ClockInOut, "id">),
-            }))
-            setClockInOuts(clockInOutList)
-          } else {
-            setClockInOuts([])
-          }
-        })
-
-        const unsubscribePayroll = onValue(payrollRef, (snapshot) => {
-          if (snapshot.exists()) {
-            // Payrolls are encrypted at rest; fetch decrypted list from Cloud Functions.
-            callCallableProxy<{ payrolls: PayrollData[] }>("hrListPayrolls", { hrPath: basePath })
-              .then((res: any) => setPayrollData((res?.data?.payrolls || []) as PayrollData[]))
-              .catch((err: any) => {
-                // If the secure payroll callable isn't deployed yet, fall back to raw RTDB.
-                if (Number(err?.status) === 404) {
-                  const data = snapshot.val() || {}
-                  const list = Object.entries(data).map(([id, payroll]) => ({
-                    id,
-                    ...(payroll as Omit<PayrollData, "id">),
-                  }))
-                  setPayrollData(list as PayrollData[])
-                  return
-                }
-                setPayrollData([])
-              })
-          } else {
-            // Legacy fallback: read old path once if new path is empty
-            get(ref(db, `${basePath}/payroll`))
-              .then((legacySnap) => {
-                if (legacySnap.exists()) {
-                  // Legacy "payroll" path isn't supported for decrypted access; return empty.
-                  setPayrollData([])
-                } else {
-                  setPayrollData([])
-                }
-              })
-              .catch(() => setPayrollData([]))
-          }
-        })
-
-        setLoading(false)
-
-        // Return cleanup function
-        return () => {
-          off(employeesRef, "value", unsubscribeEmployees)
-          off(departmentsRef, "value", unsubscribeDepartments)
-          off(rolesRef, "value", unsubscribeRoles)
-          off(timeOffRef, "value", unsubscribeTimeOff)
-          off(performanceRef, "value", unsubscribePerformance)
-          off(trainingRef, "value", unsubscribeTraining)
-          off(announcementsRef, "value", unsubscribeAnnouncements)
-          off(eventsRef, "value", unsubscribeEvents)
-          off(benefitsRef, "value", unsubscribeBenefits)
-          off(warningsRef, "value", unsubscribeWarnings)
-          off(recruitmentsRef, "value", unsubscribeRecruitments)
-          off(complianceRef, "value", unsubscribeCompliance)
-          off(diversityRef, "value", unsubscribeDiversity)
-          off(analyticsRef, "value", unsubscribeAnalytics)
-          off(schedulesRef, "value", unsubscribeSchedules)
-          off(clockInOutRef, "value", unsubscribeClockInOut)
-          off(payrollRef, "value", unsubscribePayroll)
-        }
-      } catch (err) {
-        console.error("Error loading HR data:", err)
-        setError("Failed to load HR data")
-        setLoading(false)
-      }
+    // Helper: convert RTDB snapshot to typed array keyed by node key.
+    const toList = <T>(snapshot: any, cast: (id: string, val: any) => T): T[] => {
+      if (!snapshot.exists()) return []
+      return Object.entries(snapshot.val() as Record<string, any>).map(([id, v]) =>
+        cast(id, v)
+      )
     }
 
-    const cleanup = loadHRData()
+    // Attach all listeners synchronously and collect unsubscribe handles.
+    const unsubscribers: (() => void)[] = []
+
+    unsubscribers.push(
+      onValue(employeesRef, (snapshot) => {
+        if (snapshot.exists()) {
+          callCallableProxy<{ employees: Employee[] }>("hrListEmployees", { hrPath: basePath })
+            .then((res: any) => setEmployees((res?.data?.employees || []) as Employee[]))
+            .catch((err: any) => {
+              if (Number(err?.status) === 404) {
+                setEmployees(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Employee, "id">) })))
+                return
+              }
+              setEmployees([])
+            })
+        } else {
+          setEmployees([])
+        }
+      })
+    )
+
+    unsubscribers.push(
+      onValue(departmentsRef, (snapshot) => {
+        setDepartments(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Department, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(rolesRef, (snapshot) => {
+        setRoles(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Role, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(timeOffRef, (snapshot) => {
+        setTimeOffRequests(toList(snapshot, (id, v) => ({ id, ...(v as Omit<TimeOffRequest, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(performanceRef, (snapshot) => {
+        setPerformanceReviews(toList(snapshot, (id, v) => ({ id, ...(v as Omit<PerformanceReview, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(trainingRef, (snapshot) => {
+        setTrainingRecords(toList(snapshot, (id, v) => ({ id, ...(v as Omit<TrainingRecord, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(announcementsRef, (snapshot) => {
+        setAnnouncements(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Announcement, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(eventsRef, (snapshot) => {
+        setEvents(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Event, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(benefitsRef, (snapshot) => {
+        setBenefits(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Benefit, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(warningsRef, (snapshot) => {
+        setWarnings(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Warning, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(recruitmentsRef, (snapshot) => {
+        setRecruitments(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Recruitment, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(complianceRef, (snapshot) => {
+        setCompliance(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Compliance, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(diversityRef, (snapshot) => {
+        setDiversityMetrics(toList(snapshot, (id, v) => ({ id, ...(v as Omit<DiversityMetric, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(analyticsRef, (snapshot) => {
+        setAnalytics(snapshot.exists() ? (snapshot.val() as HRAnalytics) : null)
+      })
+    )
+
+    unsubscribers.push(
+      onValue(schedulesRef, (snapshot) => {
+        setSchedules(toList(snapshot, (id, v) => ({ id, ...(v as Omit<Schedule, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(attendancesRef, (snapshot) => {
+        setClockInOuts(toList(snapshot, (id, v) => ({ id, ...(v as Omit<ClockInOut, "id">) })))
+      })
+    )
+
+    unsubscribers.push(
+      onValue(payrollRef, (snapshot) => {
+        if (snapshot.exists()) {
+          callCallableProxy<{ payrolls: PayrollData[] }>("hrListPayrolls", { hrPath: basePath })
+            .then((res: any) => setPayrollData((res?.data?.payrolls || []) as PayrollData[]))
+            .catch((err: any) => {
+              if (Number(err?.status) === 404) {
+                setPayrollData(
+                  toList(snapshot, (id, v) => ({ id, ...(v as Omit<PayrollData, "id">) }))
+                )
+                return
+              }
+              setPayrollData([])
+            })
+        } else {
+          setPayrollData([])
+        }
+      })
+    )
+
+    setLoading(false)
+
+    // Synchronous cleanup: all listeners are detached immediately on unmount.
     return () => {
-      if (cleanup && typeof cleanup.then === "function") {
-        cleanup.then((cleanupFn) => {
-          if (typeof cleanupFn === "function") {
-            cleanupFn()
-          }
-        })
-      }
+      unsubscribers.forEach((fn) => fn())
     }
   }, [basePath])
 
@@ -598,11 +453,11 @@ export const fetchTrainings = async (basePath: string): Promise<TrainingRecord[]
 export const createTraining = async (basePath: string, training: Omit<TrainingRecord, "id">): Promise<string> => {
   try {
     const trainingsRef = ref(db, `${basePath}/trainings`)
-    const newTrainingRef = push(trainingsRef, {
+    const newTrainingRef = push(trainingsRef, sanitizeForFirebase({
       ...training,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    })
+    }))
     return newTrainingRef.key || ""
   } catch (error) {
     console.error("Error creating training:", error)
@@ -654,12 +509,8 @@ export const fetchTimeOffs = async (basePath: string): Promise<TimeOffRequest[]>
 
 export const createTimeOff = async (basePath: string, timeOff: Omit<TimeOffRequest, "id">): Promise<string> => {
   try {
-    console.log("createTimeOff (DB) - basePath:", basePath)
-    console.log("createTimeOff (DB) - timeOff data:", timeOff)
-    
     const timeOffsRef = ref(db, `${basePath}/timeOffs`)
-    
-    // Prepare data for database - remove undefined values (Firebase doesn't allow undefined)
+
     const timeOffData: any = {
       employeeId: timeOff.employeeId,
       employeeName: timeOff.employeeName,
@@ -668,44 +519,25 @@ export const createTimeOff = async (basePath: string, timeOff: Omit<TimeOffReque
       type: timeOff.type,
       reason: timeOff.reason || "",
       status: timeOff.status,
-      createdAt: timeOff.createdAt || new Date().toISOString(),
-      updatedAt: timeOff.updatedAt || new Date().toISOString(),
+      createdAt: typeof timeOff.createdAt === "number" ? timeOff.createdAt : Date.now(),
+      updatedAt: Date.now(),
     }
-    
-    // Only include optional fields if they have values (not undefined or null)
-    if (timeOff.notes !== undefined && timeOff.notes !== null) {
-      timeOffData.notes = timeOff.notes
-    }
-    if (timeOff.approvedBy !== undefined && timeOff.approvedBy !== null) {
-      timeOffData.approvedBy = timeOff.approvedBy
-    }
-    if (timeOff.approvedDate !== undefined && timeOff.approvedDate !== null) {
-      timeOffData.approvedDate = timeOff.approvedDate
-    }
-    if (timeOff.totalDays !== undefined && timeOff.totalDays !== null) {
-      timeOffData.totalDays = timeOff.totalDays
-    }
-    
-    console.log("createTimeOff (DB) - Data to save (after filtering undefined):", timeOffData)
-    
+
+    if (timeOff.notes != null) timeOffData.notes = timeOff.notes
+    if (timeOff.approvedBy != null) timeOffData.approvedBy = timeOff.approvedBy
+    if (timeOff.approvedDate != null) timeOffData.approvedDate = timeOff.approvedDate
+    if (timeOff.totalDays != null) timeOffData.totalDays = timeOff.totalDays
+
     const newTimeOffRef = push(timeOffsRef, timeOffData)
-    const timeOffId = newTimeOffRef.key || ""
-    
-    console.log("createTimeOff (DB) - Created with ID:", timeOffId)
-    
+    const timeOffId = newTimeOffRef.key
+
     if (!timeOffId) {
       throw new Error("Failed to create time off: No key returned from database")
     }
-    
+
     return timeOffId
   } catch (error) {
     console.error("Error creating time off:", error)
-    console.error("Error details:", {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      basePath,
-      timeOff
-    })
     throw error
   }
 }
@@ -714,22 +546,7 @@ export const updateTimeOff = async (basePath: string, timeOffId: string, timeOff
   try {
     const timeOffRef = ref(db, `${basePath}/timeOffs/${timeOffId}`)
     
-    // Remove undefined values (Firebase doesn't allow undefined)
-    const updateData: any = {
-      updatedAt: timeOff.updatedAt || new Date().toISOString(),
-    }
-    
-    // Only include fields that are defined (not undefined or null)
-    Object.keys(timeOff).forEach(key => {
-      const value = (timeOff as any)[key]
-      if (value !== undefined && value !== null) {
-        updateData[key] = value
-      }
-    })
-    
-    console.log("updateTimeOff (DB) - Update data (after filtering undefined):", updateData)
-    
-    await update(timeOffRef, updateData)
+    await update(timeOffRef, sanitizeForFirebase({ ...timeOff, updatedAt: Date.now() }))
   } catch (error) {
     console.error("Error updating time off:", error)
     throw error
@@ -767,11 +584,11 @@ export const fetchWarnings = async (basePath: string): Promise<Warning[]> => {
 export const createWarning = async (basePath: string, warning: Omit<Warning, "id">): Promise<string> => {
   try {
     const warningsRef = ref(db, `${basePath}/warnings`)
-    const newWarningRef = push(warningsRef, {
+    const newWarningRef = push(warningsRef, sanitizeForFirebase({
       ...warning,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    })
+    }))
     return newWarningRef.key || ""
   } catch (error) {
     console.error("Error creating warning:", error)
@@ -782,10 +599,10 @@ export const createWarning = async (basePath: string, warning: Omit<Warning, "id
 export const updateWarning = async (basePath: string, warningId: string, warning: Partial<Warning>): Promise<void> => {
   try {
     const warningRef = ref(db, `${basePath}/warnings/${warningId}`)
-    await update(warningRef, {
+    await update(warningRef, sanitizeForFirebase({
       ...warning,
       updatedAt: Date.now(),
-    })
+    }))
   } catch (error) {
     console.error("Error updating warning:", error)
     throw error
@@ -825,7 +642,8 @@ export const createAttendance = async (basePath: string, attendance: Omit<ClockI
   try {
     const attendancesRef = ref(db, `${basePath}/attendances`)
     const newAttendanceRef = push(attendancesRef)
-    const attendanceId = newAttendanceRef.key || ""
+    const attendanceId = newAttendanceRef.key
+    if (!attendanceId) throw new Error("createAttendance: failed to generate ID")
 
     const attendanceData = sanitizeForFirebase({
       ...attendance as any,
@@ -971,7 +789,6 @@ export const updateCandidate = async (basePath: string, candidateId: string, upd
       updatedAt: Date.now()
     })
     await update(candidateRef, updateData)
-    console.log("Candidate updated successfully:", candidateId)
   } catch (error) {
     console.error("Error updating candidate:", error)
     throw error
@@ -982,7 +799,6 @@ export const deleteCandidate = async (basePath: string, candidateId: string): Pr
   try {
     const candidateRef = ref(db, `${basePath}/candidates/${candidateId}`)
     await remove(candidateRef)
-    console.log("Candidate deleted successfully:", candidateId)
   } catch (error) {
     console.error("Error deleting candidate:", error)
     throw error
@@ -1002,7 +818,6 @@ export const createInterview = async (basePath: string, interview: Omit<Intervie
       updatedAt: Date.now()
     })
     await set(newInterviewRef, interviewData)
-    console.log("Interview created successfully:", interviewId)
     return interviewId
   } catch (error) {
     console.error("Error creating interview:", error)
@@ -1018,7 +833,6 @@ export const updateInterview = async (basePath: string, interviewId: string, upd
       updatedAt: Date.now()
     })
     await update(interviewRef, updateData)
-    console.log("Interview updated successfully:", interviewId)
   } catch (error) {
     console.error("Error updating interview:", error)
     throw error
@@ -1029,7 +843,6 @@ export const deleteInterview = async (basePath: string, interviewId: string): Pr
   try {
     const interviewRef = ref(db, `${basePath}/interviews/${interviewId}`)
     await remove(interviewRef)
-    console.log("Interview deleted successfully:", interviewId)
   } catch (error) {
     console.error("Error deleting interview:", error)
     throw error
@@ -1043,7 +856,10 @@ export const fetchInterviews = async (basePath: string): Promise<Interview[]> =>
     
     if (snapshot.exists()) {
       const interviewsData = snapshot.val()
-      return Object.values(interviewsData) as Interview[]
+      return Object.entries(interviewsData).map(([id, v]) => ({
+        id,
+        ...(v as Omit<Interview, "id">),
+      }))
     }
     return []
   } catch (error) {
@@ -1085,37 +901,33 @@ export const fetchContracts = async (basePath: string): Promise<Contract[]> => {
 
 export const updateContract = async (basePath: string, contractId: string, contractUpdates: Partial<Contract>): Promise<Contract | null> => {
   try {
-    // Try data/hr path first, then fallback to direct path
+    // Try data/hr path first, then fallback for legacy records
     let contractRef = ref(db, `${basePath}/data/hr/contracts/${contractId}`)
     let snapshot = await get(contractRef)
-    
+
     if (!snapshot.exists()) {
-      // Fallback to direct path for backward compatibility
       contractRef = ref(db, `${basePath}/contracts/${contractId}`)
       snapshot = await get(contractRef)
     }
-    
+
     if (!snapshot.exists()) {
       console.error("Contract not found:", contractId)
       return null
     }
-    
-    const currentContract = snapshot.val()
-    // Ensure employeeId is never lost - use update value if provided, otherwise keep current
-    const finalEmployeeId = (contractUpdates?.employeeId && contractUpdates.employeeId !== '')
-      ? contractUpdates.employeeId
-      : (currentContract?.employeeId || contractUpdates?.employeeId)
-    
-    const updatedContract = { 
-      ...currentContract, 
+
+    // Atomic partial update — only write the changed fields plus updatedAt.
+    // Never read-modify-write the full document; concurrent writes would overwrite each other.
+    const patch = sanitizeForFirebase({
       ...contractUpdates,
-      id: contractId, // Ensure id is included
-      employeeId: finalEmployeeId, // Explicitly set employeeId to ensure it's never lost
-      updatedAt: Date.now() 
-    }
-    
-    await update(contractRef, updatedContract)
-    return updatedContract
+      updatedAt: Date.now(),
+    })
+    // Guard: never blank out employeeId with an explicit empty string.
+    if (patch.employeeId === "") delete patch.employeeId
+
+    await update(contractRef, patch)
+
+    // Return merged view built locally — no extra round-trip needed.
+    return { id: contractId, ...snapshot.val(), ...patch } as Contract
   } catch (error) {
     console.error("Error updating contract:", error)
     throw error
@@ -1182,9 +994,7 @@ export const createContract = async (basePath: string, contract: Partial<Contrac
       holidayEntitlement: contract.holidayEntitlement || ""
     } as Contract
     
-    console.log("createContract - saving contract to path:", `${basePath}/data/hr/contracts`, "contract ID:", contractId)
     await set(newContractRef, newContract)
-    console.log("createContract - contract saved successfully")
     return newContract
   } catch (error) {
     console.error("Error creating contract:", error)
@@ -1270,7 +1080,6 @@ export const deleteContract = async (basePath: string, contractId: string): Prom
     }
     
     await remove(contractRef)
-    console.log(`Contract ${contractId} deleted successfully`)
   } catch (error) {
     console.error("Error deleting contract:", error)
     throw error
@@ -1284,8 +1093,6 @@ export const deleteContractTemplate = async (basePath: string, templateId: strin
       : `${basePath}/data/hr/contractTemplates/${templateId}`
     const templateRef = ref(db, templatePath)
     await remove(templateRef)
-
-    console.log(`Contract template ${templateId} deleted successfully`)
   } catch (error) {
     console.error("Error deleting contract template:", error)
     throw error
@@ -1326,7 +1133,6 @@ export const createAnnouncement = async (basePath: string, announcement: Omit<An
     Object.keys(announcementData).forEach((k) => announcementData[k] === undefined && delete announcementData[k])
     
     await set(newAnnouncementRef, announcementData)
-    console.log(`Announcement ${announcementId} created successfully`)
     return announcementData
   } catch (error) {
     console.error("Error creating announcement:", error)
@@ -1337,12 +1143,7 @@ export const createAnnouncement = async (basePath: string, announcement: Omit<An
 export const updateAnnouncement = async (basePath: string, announcementId: string, updates: Partial<Announcement>): Promise<void> => {
   try {
     const announcementRef = ref(db, `${basePath}/announcements/${announcementId}`)
-    const updatesWithTimestamp = {
-      ...updates,
-      updatedAt: Date.now()
-    }
-    await update(announcementRef, updatesWithTimestamp)
-    console.log(`Announcement ${announcementId} updated successfully`)
+    await update(announcementRef, sanitizeForFirebase({ ...updates, updatedAt: Date.now() }))
   } catch (error) {
     console.error("Error updating announcement:", error)
     throw error
@@ -1353,7 +1154,6 @@ export const deleteAnnouncement = async (basePath: string, announcementId: strin
   try {
     const announcementRef = ref(db, `${basePath}/announcements/${announcementId}`)
     await remove(announcementRef)
-    console.log(`Announcement ${announcementId} deleted successfully`)
   } catch (error) {
     console.error("Error deleting announcement:", error)
     throw error
@@ -1562,17 +1362,7 @@ export const fetchSchedules = async (basePath: string): Promise<Schedule[]> => {
 
 export const createSchedule = async (basePath: string, schedule: Omit<Schedule, "id">): Promise<string | null> => {
   try {
-    const fullPath = `${basePath}/schedules`
-    console.log("🔍 createSchedule - attempting to save to path:", fullPath)
-    console.log("🔍 createSchedule - schedule data:", {
-      employeeId: schedule.employeeId,
-      employeeName: schedule.employeeName,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime
-    })
-    
-    const schedulesRef = ref(db, fullPath)
+    const schedulesRef = ref(db, `${basePath}/schedules`)
     const newScheduleRef = push(schedulesRef)
     const scheduleId = newScheduleRef.key
     
@@ -1581,12 +1371,9 @@ export const createSchedule = async (basePath: string, schedule: Omit<Schedule, 
       return null
     }
     
-    // Convert Schedule interface format to database format (match actual database structure)
     // IMPORTANT: RTDB rejects undefined anywhere in the payload, so sanitize before set().
     const databaseSchedule = sanitizeForFirebase({
       scheduleID: scheduleId,
-      employeeID: schedule.employeeId,
-      // Also store camelCase for consistency with newer reads/writes.
       employeeId: schedule.employeeId,
       employeeName: schedule.employeeName,
       date: schedule.date,
@@ -1617,18 +1404,6 @@ export const createSchedule = async (basePath: string, schedule: Omit<Schedule, 
     })
     
     await set(newScheduleRef, databaseSchedule)
-    console.log("✅ createSchedule - Schedule created successfully:", {
-      scheduleId,
-      fullPath,
-      databaseSchedule: {
-        scheduleID: databaseSchedule.scheduleID,
-        employeeID: databaseSchedule.employeeID,
-        employeeName: databaseSchedule.employeeName,
-        date: databaseSchedule.date,
-        startTime: databaseSchedule.startTime,
-        endTime: databaseSchedule.endTime
-      }
-    })
     return scheduleId
   } catch (error) {
     console.error("Error creating schedule:", error)
@@ -1808,7 +1583,6 @@ export const createRole = async (basePath: string, role: Omit<Role, "id">): Prom
     }
     
     await set(newRoleRef, roleData)
-    console.log(`Role ${roleId} created successfully`)
     return roleData
   } catch (error) {
     console.error("Error creating role:", error)
@@ -1824,7 +1598,6 @@ export const updateRole = async (basePath: string, roleId: string, updates: Part
       updatedAt: Date.now()
     }
     await update(roleRef, updatesWithTimestamp)
-    console.log(`Role ${roleId} updated successfully`)
   } catch (error) {
     console.error("Error updating role:", error)
     throw error
@@ -1835,7 +1608,6 @@ export const deleteRole = async (basePath: string, roleId: string): Promise<void
   try {
     const roleRef = ref(db, `${basePath}/roles/${roleId}`)
     await remove(roleRef)
-    console.log(`Role ${roleId} deleted successfully`)
   } catch (error) {
     console.error("Error deleting role:", error)
     throw error
@@ -1857,7 +1629,6 @@ export const createDepartment = async (basePath: string, department: Omit<Depart
     }
     
     await set(newDepartmentRef, departmentData)
-    console.log(`Department ${departmentId} created successfully`)
     return departmentData
   } catch (error) {
     console.error("Error creating department:", error)
@@ -1873,7 +1644,6 @@ export const updateDepartment = async (basePath: string, departmentId: string, u
       updatedAt: Date.now()
     }
     await update(departmentRef, updatesWithTimestamp)
-    console.log(`Department ${departmentId} updated successfully`)
   } catch (error) {
     console.error("Error updating department:", error)
     throw error
@@ -1884,7 +1654,6 @@ export const deleteDepartment = async (basePath: string, departmentId: string): 
   try {
     const departmentRef = ref(db, `${basePath}/departments/${departmentId}`)
     await remove(departmentRef)
-    console.log(`Department ${departmentId} deleted successfully`)
   } catch (error) {
     console.error("Error deleting department:", error)
     throw error
@@ -1944,12 +1713,29 @@ export async function fetchServiceChargeRules(basePath: string): Promise<any> {
 }
 
 export async function saveServiceChargeRules(basePath: string, rules: Record<string, any>): Promise<void> {
-  await set(ref(db, `${basePath}/serviceChargeRules`), rules)
+  try {
+    await set(ref(db, `${basePath}/serviceChargeRules`), sanitizeForFirebase(rules))
+  } catch (error) {
+    console.error("Error saving service charge rules:", error)
+    throw error
+  }
 }
 
-export async function fetchPosBills(basePath: string): Promise<any> {
+export async function fetchPosBills(
+  basePath: string,
+  fromTimestamp?: number,
+  toTimestamp?: number,
+): Promise<any> {
   try {
-    const snap = await get(ref(db, `${basePath}/pos/bills`))
+    const billsRef = ref(db, `${basePath}/pos/bills`)
+    let snap
+    if (fromTimestamp !== undefined && toTimestamp !== undefined) {
+      const { query: rtdbQuery, orderByChild, startAt, endAt } = await import("firebase/database")
+      const q = rtdbQuery(billsRef, orderByChild("createdAt"), startAt(fromTimestamp), endAt(toTimestamp))
+      snap = await get(q)
+    } else {
+      snap = await get(billsRef)
+    }
     return snap.exists() ? snap.val() : null
   } catch (error) {
     console.error("Error fetching POS bills:", error)
@@ -1958,11 +1744,23 @@ export async function fetchPosBills(basePath: string): Promise<any> {
 }
 
 export async function saveServiceChargeAllocation(basePath: string, allocationId: string, allocation: any): Promise<void> {
-  await set(ref(db, `${basePath}/serviceChargeAllocations/${allocationId}`), allocation)
+  if (!allocationId) throw new Error("saveServiceChargeAllocation: allocationId is required")
+  try {
+    await set(ref(db, `${basePath}/serviceChargeAllocations/${allocationId}`), sanitizeForFirebase(allocation))
+  } catch (error) {
+    console.error("Error saving service charge allocation:", error)
+    throw error
+  }
 }
 
 export async function saveServiceChargeEmployeeAllocation(basePath: string, allocId: string, data: any): Promise<void> {
-  await set(ref(db, `${basePath}/serviceChargeEmployeeAllocations/${allocId}`), data)
+  if (!allocId) throw new Error("saveServiceChargeEmployeeAllocation: allocId is required")
+  try {
+    await set(ref(db, `${basePath}/serviceChargeEmployeeAllocations/${allocId}`), sanitizeForFirebase(data))
+  } catch (error) {
+    console.error("Error saving service charge employee allocation:", error)
+    throw error
+  }
 }
 
 // ===== HR EMAIL CONFIG =====
@@ -2113,25 +1911,29 @@ export async function saveHRPayrollSettings(basePath: string, data: any): Promis
 }
 
 export async function findHRSchedulePath(paths: string[], scheduleId: string): Promise<string | null> {
-  for (const p of paths) {
-    try {
-      const snap = await get(ref(db, `${p}/schedules/${scheduleId}`))
-      if (snap.exists()) return p
-    } catch {
-      // ignore and keep trying
-    }
-  }
-  return null
+  const results = await Promise.all(
+    paths.map(async (p) => {
+      try {
+        const snap = await get(ref(db, `${p}/schedules/${scheduleId}`))
+        return snap.exists() ? p : null
+      } catch {
+        return null
+      }
+    })
+  )
+  return results.find((r) => r !== null) ?? null
 }
 
 export async function findHRReadPath(paths: string[], entity: string, id: string): Promise<string | null> {
-  for (const p of paths) {
-    try {
-      const snap = await get(ref(db, `${p}/${entity}/${id}`))
-      if (snap.exists()) return p
-    } catch {
-      // ignore and keep trying
-    }
-  }
-  return null
+  const results = await Promise.all(
+    paths.map(async (p) => {
+      try {
+        const snap = await get(ref(db, `${p}/${entity}/${id}`))
+        return snap.exists() ? p : null
+      } catch {
+        return null
+      }
+    })
+  )
+  return results.find((r) => r !== null) ?? null
 }

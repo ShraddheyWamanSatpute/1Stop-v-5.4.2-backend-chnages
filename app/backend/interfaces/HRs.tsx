@@ -281,20 +281,17 @@ export interface Schedule {
   shiftType: "regular" | "holiday" | "off" | "training"
   payType: "hourly" | "flat"
   payRate?: number
-  // Breaks (minutes)
   breakDuration?: number
-  // Clock in/out tracking
+  breakStartTime?: string
   clockInTime?: string
   clockOutTime?: string
   actualHours?: number
   clockInLocation?: string
   clockOutLocation?: string
-  // Approval workflow
   approvedBy?: string
   approvedAt?: string
   confirmedBy?: string
   confirmedAt?: string
-  // Hours adjustment
   adjustedHours?: number
   adjustmentReason?: string
   adjustmentApprovedBy?: string
@@ -304,7 +301,8 @@ export interface Schedule {
     condition?: string
     icon?: string
   }
-  // Database specific fields
+  salesTarget?: number
+  validation?: ScheduleValidation
   departmentID?: string
   createdAt: string
   updatedAt?: string
@@ -324,19 +322,20 @@ export interface ScheduleFormData {
   shiftType: "regular" | "holiday" | "off" | "training"
   payType: "hourly" | "flat"
   payRate?: number
-  // Breaks (minutes)
   breakDuration?: number
   breakStartTime?: Date | null
-  // Clock in/out tracking
   clockInTime?: string
   clockOutTime?: string
   actualHours?: number
   clockInLocation?: string
   clockOutLocation?: string
-  // Hours adjustment
   adjustedHours?: number
   adjustmentReason?: string
 }
+
+// NOTE: The two duplicate Schedule declarations that previously appeared later in this
+// file (after VenueBattle and DiversitySurvey) have been removed. This is the single
+// canonical definition.
 
 export interface ScheduleManagerProps {
   dateRange?: {
@@ -1123,53 +1122,6 @@ export interface VenueBattle {
 }
 
 
-export interface Schedule {
-  id: string
-  employeeId: string
-  employeeName: string
-  date: string
-  startTime: string
-  endTime: string
-  department: string
-  role?: string
-  notes?: string
-  status: "draft" | "scheduled" | "approved" | "confirmed" | "finalized" | "completed" | "cancelled"
-  shiftType: "regular" | "holiday" | "off" | "training"
-  payType: "hourly" | "flat"
-  payRate?: number
-  // Breaks (minutes)
-  breakDuration?: number
-  breakStartTime?: string
-  // Clock in/out tracking
-  clockInTime?: string
-  clockOutTime?: string
-  actualHours?: number
-  clockInLocation?: string
-  clockOutLocation?: string
-  // Approval workflow
-  approvedBy?: string
-  approvedAt?: string
-  confirmedBy?: string
-  confirmedAt?: string
-  // Hours adjustment
-  adjustedHours?: number
-  adjustmentReason?: string
-  adjustmentApprovedBy?: string
-  adjustmentApprovedAt?: string
-  weather?: {
-    temperature?: number
-    condition?: string
-    icon?: string
-  }
-  temperature?: number
-  condition?: string
-  icon?: string
-  salesTarget?: number
-  validation?: ScheduleValidation
-  createdAt: string
-  updatedAt?: string
-}
-
 export interface CompanyEvent {
   id: string
   title: string
@@ -1235,49 +1187,6 @@ export interface DiversitySurvey {
   updatedAt?: number
 }
 
-
-export interface Schedule {
-  id: string
-  employeeId: string
-  employeeName: string
-  date: string
-  startTime: string
-  endTime: string
-  department: string
-  role?: string
-  notes?: string
-  status: "draft" | "scheduled" | "approved" | "confirmed" | "finalized" | "completed" | "cancelled"
-  shiftType: "regular" | "holiday" | "off" | "training"
-  payType: "hourly" | "flat"
-  payRate?: number
-  // Breaks (minutes)
-  breakDuration?: number
-  // Clock in/out tracking
-  clockInTime?: string
-  clockOutTime?: string
-  actualHours?: number
-  clockInLocation?: string
-  clockOutLocation?: string
-  // Approval workflow
-  approvedBy?: string
-  approvedAt?: string
-  confirmedBy?: string
-  confirmedAt?: string
-  // Hours adjustment
-  adjustedHours?: number
-  adjustmentReason?: string
-  adjustmentApprovedBy?: string
-  adjustmentApprovedAt?: string
-  weather?: {
-    temperature?: number
-    condition?: string
-    icon?: string
-  }
-  // Database specific fields
-  departmentID?: string
-  createdAt: string
-  updatedAt?: string
-}
 
 export interface Interview {
   id: string
