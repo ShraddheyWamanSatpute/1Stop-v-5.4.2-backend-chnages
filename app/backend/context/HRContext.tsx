@@ -552,20 +552,20 @@ const hrReducer = (state: HRState, action: HRAction): HRState => {
       }
     case "SET_ATTENDANCES":
       return { ...state, attendances: action.payload, attendanceRecords: action.payload }
-    case "ADD_ATTENDANCE":
-      return { ...state, attendances: [...state.attendances, action.payload] }
-    case "UPDATE_ATTENDANCE":
-      return {
-        ...state,
-        attendances: state.attendances.map((attendance) =>
-          attendance.id === action.payload.id ? action.payload : attendance
-        ),
-      }
-    case "DELETE_ATTENDANCE":
-      return {
-        ...state,
-        attendances: state.attendances.filter((attendance) => attendance.id !== action.payload),
-      }
+    case "ADD_ATTENDANCE": {
+      const next = [...state.attendances, action.payload]
+      return { ...state, attendances: next, attendanceRecords: next }
+    }
+    case "UPDATE_ATTENDANCE": {
+      const next = state.attendances.map((attendance) =>
+        attendance.id === action.payload.id ? action.payload : attendance
+      )
+      return { ...state, attendances: next, attendanceRecords: next }
+    }
+    case "DELETE_ATTENDANCE": {
+      const next = state.attendances.filter((attendance) => attendance.id !== action.payload)
+      return { ...state, attendances: next, attendanceRecords: next }
+    }
     case "SET_COMPLIANCE_TASKS":
       return { ...state, complianceTasks: action.payload }
     case "ADD_COMPLIANCE_TASK":
@@ -601,20 +601,20 @@ const hrReducer = (state: HRState, action: HRAction): HRState => {
     // Job actions
     case "SET_JOBS":
       return { ...state, jobs: action.payload, jobPostings: action.payload }
-    case "ADD_JOB":
-      return { ...state, jobs: [...state.jobs, action.payload] }
-    case "UPDATE_JOB":
-      return {
-        ...state,
-        jobs: state.jobs.map((job) =>
-          job.id === action.payload.id ? action.payload : job
-        ),
-      }
-    case "DELETE_JOB":
-      return {
-        ...state,
-        jobs: state.jobs.filter((job) => job.id !== action.payload),
-      }
+    case "ADD_JOB": {
+      const next = [...state.jobs, action.payload]
+      return { ...state, jobs: next, jobPostings: next }
+    }
+    case "UPDATE_JOB": {
+      const next = state.jobs.map((job) =>
+        job.id === action.payload.id ? action.payload : job
+      )
+      return { ...state, jobs: next, jobPostings: next }
+    }
+    case "DELETE_JOB": {
+      const next = state.jobs.filter((job) => job.id !== action.payload)
+      return { ...state, jobs: next, jobPostings: next }
+    }
     case "SET_CANDIDATES":
       return { ...state, candidates: action.payload }
     case "ADD_CANDIDATE":

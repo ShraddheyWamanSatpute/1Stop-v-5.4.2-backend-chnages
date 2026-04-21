@@ -22,7 +22,8 @@ export const createEmployee = async (
 ): Promise<Employee> => {
   try {
     const employeeId = await rtdb.createEmployee(basePath, employee)
-    return { ...employee, id: employeeId } as Employee
+    if (!employeeId) throw new Error("createEmployee: failed to generate ID from provider")
+    return { ...employee, id: employeeId }
   } catch (error) {
     console.error("Error creating employee:", error)
     throw error
@@ -35,8 +36,9 @@ export const updateEmployee = async (
   employee: Partial<Employee>
 ): Promise<Employee> => {
   try {
-    await rtdb.updateEmployee(basePath, employeeId, employee)
-    return { ...employee, id: employeeId } as Employee
+    const saved = await rtdb.updateEmployee(basePath, employeeId, employee)
+    if (!saved) throw new Error(`updateEmployee: no record returned for id ${employeeId}`)
+    return saved
   } catch (error) {
     console.error("Error updating employee:", error)
     throw error
