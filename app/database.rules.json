@@ -1,0 +1,123 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "joinCodes": {
+      // Prevent listing all join codes
+      ".read": false,
+      ".write": "auth != null",
+      "$code": {
+        // Allow invite landing page to load a specific employee join code before sign-in.
+        // Do NOT allow enumerating all codes (blocked by parent .read = false).
+        ".read": "data.exists() && data.child('type').val() == 'employee'",
+        // Allow creating join codes (by signed-in admins) and marking them used (by the accepting signed-in user).
+        ".write": "auth != null && ((!data.exists() && newData.child('type').val() == 'employee') || (data.exists() && data.child('type').val() == 'employee' && data.child('used').val() != true && newData.child('used').val() == true && newData.child('usedBy').val() == auth.uid) || (data.exists() && data.child('type').val() == 'employee' && newData.child('revoked').val() == true))"
+      }
+    },
+    "siteInvites": {
+      // Prevent listing all site invites
+      ".read": false,
+      ".write": "auth != null",
+      "$inviteId": {
+        // Allow invite landing page to load a specific site invite before sign-in (for AcceptSiteInvite page)
+        // Do NOT allow enumerating all invites (blocked by parent .read = false).
+        ".read": "data.exists() && data.child('status').val() == 'pending'",
+        // Allow creating site invites (by signed-in admins) and updating status (by accepting user or admin)
+        ".write": "auth != null && ((!data.exists()) || (data.exists() && data.child('status').val() == 'pending' && newData.child('status').val() == 'accepted' && newData.child('acceptedBy').val() == auth.uid) || (data.exists() && newData.child('status').val() == 'cancelled'))"
+      }
+    },
+    "invites": {
+      // Company invites (owner/admin invites)
+      // Prevent listing all invites
+      ".read": false,
+      ".write": "auth != null",
+      "$inviteId": {
+        // Allow invite landing page to load a specific company invite before sign-in
+        // Do NOT allow enumerating all invites (blocked by parent .read = false).
+        ".read": "data.exists() && data.child('status').val() == 'pending'",
+        // Allow creating company invites (by signed-in admins) and updating status (by accepting user or admin)
+        ".write": "auth != null && ((!data.exists()) || (data.exists() && data.child('status').val() == 'pending' && newData.child('status').val() == 'accepted' && newData.child('acceptedBy').val() == auth.uid) || (data.exists() && newData.child('status').val() == 'cancelled'))"
+      }
+    },
+    "companies": {
+      "$companyId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "notifications": {
+          ".indexOn": ["userId"]
+        },
+        "sites": {
+          "$siteId": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            "notifications": {
+              ".indexOn": ["userId"]
+            },
+            "subsites": {
+              "$subsiteId": {
+                ".read": "auth != null",
+                ".write": "auth != null",
+                "notifications": {
+                  ".indexOn": ["userId"]
+                },
+                "data": {
+                  ".read": "auth != null",
+                  ".write": "auth != null"
+                }
+              }
+            },
+            "data": {
+              ".read": "auth != null",
+              ".write": "auth != null"
+            }
+          }
+        }
+      }
+    },
+    "users": {
+      ".indexOn": ["email"],
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "yourstop": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "users": {
+        "$uid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid",
+          "bookings": {
+            "$bookingId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          },
+          "favorites": {
+            "$restaurantId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          },
+          "profile": {
+            ".read": "auth != null && auth.uid == $uid",
+            ".write": "auth != null && auth.uid == $uid"
+          },
+          "dietaryPreferences": {
+            "$prefId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          },
+          "paymentMethods": {
+            "$methodId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          }
+        }
+      }
+    }
+  }
+}

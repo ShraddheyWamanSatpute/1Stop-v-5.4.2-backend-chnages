@@ -1,0 +1,104 @@
+/* Global scale adjustment - reduces all UI elements by 10% */
+html {
+  font-size: 90%;
+}
+
+/* Hide scrollbars globally while preserving scrolling behavior. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.stagger-animation > * {
+  opacity: 0;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-draw {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawLine 2s ease-in-out forwards;
+}
+
+.animate-draw-delayed {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawLine 2s ease-in-out 0.5s forwards;
+}
+
+.animate-grow-width {
+  width: 0;
+  transition: width 1s ease-out;
+}
+
+[data-animate="true"] {
+  width: 100%;
+}
+
+.animate-pulse-subtle {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+/* Never force ALL CAPS anywhere in /App.
+   This is intentionally in plain CSS so it can win against any leaked global styles. */
+.MuiButtonBase-root,
+.MuiButton-root,
+.MuiTab-root,
+.MuiToggleButton-root {
+  text-transform: none !important;
+}

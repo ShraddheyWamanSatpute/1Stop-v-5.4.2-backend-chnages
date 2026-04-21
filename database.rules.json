@@ -1,0 +1,350 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "joinCodes": {
+      // Prevent listing all join codes
+      ".read": false,
+      ".write": "auth != null",
+      "$code": {
+        // Allow invite landing page to load a specific employee join code before sign-in.
+        // Do NOT allow enumerating all codes (blocked by parent .read = false).
+        ".read": "data.exists() && data.child('type').val() == 'employee'",
+        // Allow creating join codes (by signed-in admins) and marking them used (by the accepting signed-in user).
+        ".write": "auth != null && ((!data.exists() && newData.child('type').val() == 'employee') || (data.exists() && data.child('type').val() == 'employee' && data.child('used').val() != true && newData.child('used').val() == true && newData.child('usedBy').val() == auth.uid) || (data.exists() && data.child('type').val() == 'employee' && newData.child('revoked').val() == true))"
+      }
+    },
+    "siteInvites": {
+      // Prevent listing all site invites
+      ".read": false,
+      ".write": "auth != null",
+      "$inviteId": {
+        // Allow invite landing page to load a specific site invite before sign-in (for AcceptSiteInvite page)
+        // Do NOT allow enumerating all invites (blocked by parent .read = false).
+        ".read": "data.exists() && data.child('status').val() == 'pending'",
+        // Allow creating site invites (by signed-in admins) and updating status (by accepting user or admin)
+        ".write": "auth != null && ((!data.exists()) || (data.exists() && data.child('status').val() == 'pending' && newData.child('status').val() == 'accepted' && newData.child('acceptedBy').val() == auth.uid) || (data.exists() && newData.child('status').val() == 'cancelled'))"
+      }
+    },
+    "invites": {
+      // Company invites (owner/admin invites)
+      // Prevent listing all invites
+      ".read": false,
+      ".write": "auth != null",
+      "$inviteId": {
+        // Allow invite landing page to load a specific company invite before sign-in
+        // Do NOT allow enumerating all invites (blocked by parent .read = false).
+        ".read": "data.exists() && data.child('status').val() == 'pending'",
+        // Allow creating company invites (by signed-in admins) and updating status (by accepting user or admin)
+        ".write": "auth != null && ((!data.exists()) || (data.exists() && data.child('status').val() == 'pending' && newData.child('status').val() == 'accepted' && newData.child('acceptedBy').val() == auth.uid) || (data.exists() && newData.child('status').val() == 'cancelled'))"
+      }
+    },
+    "companies": {
+      "$companyId": {
+        // Company data: only company members or internal admins.
+        ".read": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        "data": {
+          "hr": {
+            "employees": {
+              // Encrypted-at-rest HR data: block direct client writes (use Cloud Functions).
+              ".read": false,
+              ".write": false
+            },
+            "payrolls": {
+              // Encrypted-at-rest payroll data: block direct client writes (use Cloud Functions).
+              ".read": false,
+              ".write": false
+            }
+          },
+          "company": {
+            // Server-side only: encrypted HMRC secrets (tokens, client secret).
+            "hmrcSecrets": {
+              ".read": false,
+              ".write": false
+            }
+          }
+        },
+        "notifications": {
+          ".indexOn": ["userId"]
+        },
+        "sites": {
+          "$siteId": {
+            ".read": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+            ".write": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+            "data": {
+              ".read": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+              ".write": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+              "hr": {
+                "employees": {
+                  ".read": false,
+                  ".write": false
+                },
+                "payrolls": {
+                  ".read": false,
+                  ".write": false
+                }
+              },
+              "company": {
+                "hmrcSecrets": {
+                  ".read": false,
+                  ".write": false
+                }
+              }
+            },
+            "notifications": {
+              ".indexOn": ["userId"]
+            }
+          },
+          "subsites": {
+            "$subsiteId": {
+              ".read": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+              ".write": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+              "data": {
+                ".read": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/companies/' + $companyId).exists() || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+                "hr": {
+                  "employees": {
+                    ".read": false,
+                    ".write": false
+                  },
+                  "payrolls": {
+                    ".read": false,
+                    ".write": false
+                  }
+                },
+                "company": {
+                  "hmrcSecrets": {
+                    ".read": false,
+                    ".write": false
+                  }
+                }
+              },
+              "notifications": {
+                ".indexOn": ["userId"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "users": {
+      ".indexOn": ["email"],
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId",
+        "isAdmin": {
+          // Only a super-admin can grant/revoke super-admin.
+          // Cloud Functions (admin SDK) bypass rules, so bootstrap flows still work.
+          ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)"
+        },
+        "adminStaff": {
+          // Only a super-admin can manage internal admin staff permissions.
+          ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)"
+        }
+      }
+    },
+    "admin": {
+      // Admin area: super-admin OR internal admin staff
+      ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+      ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+
+      // Allow admins/staff to store their own admin profile.
+      "users": {
+        "$uid": {
+          ".read": "auth != null && ($uid == auth.uid || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)",
+          ".write": "auth != null && ($uid == auth.uid || auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)"
+        }
+      },
+
+      "ops": {
+        // Ops: allow internal admin staff to read; restrict writes heavily.
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        ".write": false,
+
+        "actions": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+          ".write": false
+        },
+        "deployments": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+          "$id": {
+            // Manual deployment logging: super-admin create only (updates via admin SDK).
+            ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true) && !data.exists()"
+          }
+        },
+        "releases": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+          "$id": {
+            // Manual release logging: super-admin create only (updates via admin SDK).
+            ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true) && !data.exists()"
+          }
+        },
+        "changelogs": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+          ".write": false
+        },
+        "providers": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+          ".write": false
+        },
+        "index": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+          ".write": false
+        },
+        "audit": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)",
+          ".write": false,
+          "views": {
+            "$id": {
+              // Allow append-only client-side “viewed Ops page” audit.
+              ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true) && !data.exists()"
+            }
+          }
+        },
+        "authEmails": {
+          ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)",
+          ".write": false
+        }
+      },
+
+      // Staff management: super-admin OR staff page access
+      "staff": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/staff').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/staff/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/staff').val() == true))"
+      },
+      "staffInvites": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/staff').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/staff/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/staff').val() == true))"
+      },
+      "staffPositions": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/staff').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/staff/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/staff').val() == true))"
+      },
+
+      // CRM: super-admin OR crm/clients page access
+      "crm": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && ((root.child('users/' + auth.uid + '/adminStaff/pages/crm').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/crm/view').val() == true) || (root.child('users/' + auth.uid + '/adminStaff/pages/clients').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/clients/view').val() == true))))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && ((root.child('users/' + auth.uid + '/adminStaff/pages/crm').val() == true) || (root.child('users/' + auth.uid + '/adminStaff/pages/clients').val() == true))))"
+      },
+
+      // Tasks + projects: super-admin OR page access
+      "tasks": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/tasks').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/tasks/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/tasks').val() == true))"
+      },
+      "projects": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/projects').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/projects/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/projects').val() == true))"
+      },
+
+      // Calendar: super-admin OR calendar page access
+      "calendar": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/calendar').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/calendar/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/calendar').val() == true))"
+      },
+
+      // Other admin modules: super-admin OR matching page access
+      "marketing": {
+        ".indexOn": ["createdBy"],
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)"
+      },
+      "content": {
+        "posts": {
+          ".indexOn": ["createdBy"]
+        },
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)"
+      },
+      "analytics": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true)"
+      },
+      "social": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/social').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/social/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/social').val() == true))"
+      },
+      "email": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/email').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/email/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/email').val() == true))",
+        "users": {
+          "$uid": {
+            // Only super-admin can read/write other users' email data.
+            ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || ($uid == auth.uid && root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/email').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/email/view').val() == true)))",
+            ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || ($uid == auth.uid && root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/email').val() == true))"
+          }
+        }
+      },
+      "qr": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && ((root.child('users/' + auth.uid + '/adminStaff/pages/crm').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/crm/view').val() == true) || (root.child('users/' + auth.uid + '/adminStaff/pages/viewer').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/viewer/view').val() == true))))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/crm').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/viewer').val() == true)))"
+      },
+      "leads": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && ((root.child('users/' + auth.uid + '/adminStaff/pages/crm').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/crm/view').val() == true) || (root.child('users/' + auth.uid + '/adminStaff/pages/viewer').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/viewer/view').val() == true))))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/crm').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/viewer').val() == true)))"
+      },
+      "referrals": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && (root.child('users/' + auth.uid + '/adminStaff/pages/referrals').val() == true || root.child('users/' + auth.uid + '/adminStaff/pages/referrals/view').val() == true)))",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || (root.child('users/' + auth.uid + '/adminStaff/active').val() == true && root.child('users/' + auth.uid + '/adminStaff/pages/referrals').val() == true))"
+      },
+      "notes": {
+        ".indexOn": ["createdBy"],
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)"
+      },
+
+      // Shared plumbing for CRM/PM
+      "activities": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)"
+      },
+      "activityBy": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)"
+      },
+      "index": {
+        ".read": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)",
+        ".write": "auth != null && (auth.token.isAdmin == true || root.child('users/' + auth.uid + '/isAdmin').val() == true || root.child('users/' + auth.uid + '/adminStaff/active').val() == true)"
+      }
+    },
+    "yourstop": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "users": {
+        "$uid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid",
+          "bookings": {
+            "$bookingId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          },
+          "favorites": {
+            "$restaurantId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          },
+          "profile": {
+            ".read": "auth != null && auth.uid == $uid",
+            ".write": "auth != null && auth.uid == $uid"
+          },
+          "dietaryPreferences": {
+            "$prefId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          },
+          "paymentMethods": {
+            "$methodId": {
+              ".read": "auth != null && auth.uid == $uid",
+              ".write": "auth != null && auth.uid == $uid"
+            }
+          }
+        }
+      }
+    }
+  }
+}

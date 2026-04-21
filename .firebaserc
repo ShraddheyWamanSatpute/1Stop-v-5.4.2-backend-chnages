@@ -1,0 +1,21 @@
+{
+  "projects": {
+    "default": "stop-test-8025f",
+    "main": "stop-stock-a22f5",
+    "test": "stop-test-8025f",
+    "live": "stop-stock-a22f5"
+  },
+  "targets": {
+    "stop-test-8025f": {
+      "hosting": {
+        "test": ["stop-test-8025f"]
+      }
+    },
+    "stop-stock-a22f5": {
+      "hosting": {
+        "live": ["onestop-f493a"]
+      }
+    }
+  },
+  "etags": {}
+}

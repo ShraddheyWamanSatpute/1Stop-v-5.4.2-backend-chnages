@@ -1,0 +1,355 @@
+name: Deploy (test/live)
+
+on:
+  workflow_dispatch:
+    inputs:
+      actionId:
+        description: "Ops action id (RTDB key)"
+        required: true
+        type: string
+      environment:
+        description: "test or live"
+        required: true
+        type: choice
+        options:
+          - test
+          - live
+      service:
+        description: "deploy target"
+        required: true
+        type: choice
+        options:
+          - app
+          - admin
+          - all
+          - api
+      gitSha:
+        description: "Git SHA to deploy"
+        required: false
+        type: string
+      version:
+        description: "Version string (SemVer recommended)"
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.gitSha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Select environment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ inputs.environment }}" == "test" ]]; then
+            echo "FB_PROJECT=stop-test-8025f" >> "$GITHUB_ENV"
+            echo "FB_HOSTING_TARGET=test" >> "$GITHUB_ENV"
+            echo "OPS_FIREBASE_SITE_MAIN_SITE=${{ vars.OPS_FIREBASE_SITE_DEV_MAIN_SITE }}" >> "$GITHUB_ENV"
+            echo "OPS_FIREBASE_SITE_APP=${{ vars.OPS_FIREBASE_SITE_DEV_APP }}" >> "$GITHUB_ENV"
+            echo "OPS_FIREBASE_SITE_ADMIN=${{ vars.OPS_FIREBASE_SITE_DEV_ADMIN }}" >> "$GITHUB_ENV"
+            echo "FIREBASE_TOKEN=${{ secrets.FIREBASE_TOKEN_DEV }}" >> "$GITHUB_ENV"
+            echo "OPS_CI_HMAC_SECRET=${{ secrets.OPS_CI_HMAC_SECRET_DEV }}" >> "$GITHUB_ENV"
+
+            echo "VITE_FIREBASE_ENV=main" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_DATABASE_URL=${{ secrets.VITE_FIREBASE_DATABASE_URL_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID_DEV }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_FUNCTIONS_REGION=${{ secrets.VITE_FIREBASE_FUNCTIONS_REGION_DEV }}" >> "$GITHUB_ENV"
+          else
+            echo "FB_PROJECT=stop-stock-a22f5" >> "$GITHUB_ENV"
+            echo "FB_HOSTING_TARGET=live" >> "$GITHUB_ENV"
+            echo "OPS_FIREBASE_SITE_MAIN_SITE=${{ vars.OPS_FIREBASE_SITE_PROD_MAIN_SITE }}" >> "$GITHUB_ENV"
+            echo "OPS_FIREBASE_SITE_APP=${{ vars.OPS_FIREBASE_SITE_PROD_APP }}" >> "$GITHUB_ENV"
+            echo "OPS_FIREBASE_SITE_ADMIN=${{ vars.OPS_FIREBASE_SITE_PROD_ADMIN }}" >> "$GITHUB_ENV"
+            echo "FIREBASE_TOKEN=${{ secrets.FIREBASE_TOKEN_PROD }}" >> "$GITHUB_ENV"
+            echo "OPS_CI_HMAC_SECRET=${{ secrets.OPS_CI_HMAC_SECRET_PROD }}" >> "$GITHUB_ENV"
+
+            echo "VITE_FIREBASE_ENV=main" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_DATABASE_URL=${{ secrets.VITE_FIREBASE_DATABASE_URL_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID_PROD }}" >> "$GITHUB_ENV"
+            echo "VITE_FIREBASE_FUNCTIONS_REGION=${{ secrets.VITE_FIREBASE_FUNCTIONS_REGION_PROD }}" >> "$GITHUB_ENV"
+          fi
+
+          echo "APP_ENV=${{ inputs.environment }}" >> "$GITHUB_ENV"
+          echo "APP_SERVICE=${{ inputs.service }}" >> "$GITHUB_ENV"
+          echo "APP_VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+          echo "GIT_SHA=${{ inputs.gitSha }}" >> "$GITHUB_ENV"
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Select build and deploy strategy
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUILD_COMMAND=""
+          NEEDS_HOSTING="false"
+          NEEDS_FUNCTIONS="false"
+          SERVICE="${{ inputs.service }}"
+
+          case "$SERVICE" in
+            app)
+              BUILD_COMMAND="build:app"
+              NEEDS_HOSTING="true"
+              ;;
+            admin)
+              BUILD_COMMAND="build:admin"
+              NEEDS_HOSTING="true"
+              ;;
+            api)
+              BUILD_COMMAND=""
+              NEEDS_FUNCTIONS="true"
+              ;;
+            all)
+              BUILD_COMMAND="build:all"
+              NEEDS_HOSTING="true"
+              NEEDS_FUNCTIONS="true"
+              ;;
+            *)
+              echo "Unsupported service: $SERVICE"
+              exit 1
+              ;;
+          esac
+
+          echo "BUILD_COMMAND=$BUILD_COMMAND" >> "$GITHUB_ENV"
+          echo "NEEDS_HOSTING=$NEEDS_HOSTING" >> "$GITHUB_ENV"
+          echo "NEEDS_FUNCTIONS=$NEEDS_FUNCTIONS" >> "$GITHUB_ENV"
+
+      - name: Build selected frontend target
+        if: env.BUILD_COMMAND != ''
+        run: npm run ${{ env.BUILD_COMMAND }}
+
+      - name: Build functions
+        if: env.NEEDS_FUNCTIONS == 'true'
+        run: npm --prefix app/functions run build
+
+      - name: Generate hosting config
+        if: env.NEEDS_HOSTING == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP_SITE="${OPS_FIREBASE_SITE_APP:-}"
+          ADMIN_SITE="${OPS_FIREBASE_SITE_ADMIN:-}"
+
+          : > /tmp/firebase-hosting.json
+          echo '{"hosting":[' >> /tmp/firebase-hosting.json
+          FIRST=1
+
+          append_site() {
+            local SITE_ID="$1"
+            if [[ -z "$SITE_ID" ]]; then
+              return
+            fi
+            if [[ "$FIRST" -eq 0 ]]; then
+              echo "," >> /tmp/firebase-hosting.json
+            fi
+            FIRST=0
+            cat >> /tmp/firebase-hosting.json <<JSON
+{"site":"$SITE_ID","public":"app/dist","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"/api/ops","function":"opsRouter"},{"source":"/api/ops/**","function":"opsRouter"},{"source":"/api/version","destination":"/version.json"},{"source":"**","destination":"/index.html"}],"headers":[{"source":"/version.json","headers":[{"key":"Access-Control-Allow-Origin","value":"*"},{"key":"Cache-Control","value":"no-store"}]},{"source":"**/*.@(js|css|woff2|ico|png|jpg|svg)","headers":[{"key":"Cache-Control","value":"public,max-age=31536000,immutable"}]},{"source":"/index.html","headers":[{"key":"Cache-Control","value":"no-cache"}]}]}
+JSON
+          }
+
+          SERVICE="${{ inputs.service }}"
+          VERIFY_VERSION_URL=""
+          VERIFY_ROUTE_URL=""
+
+          case "$SERVICE" in
+            app)
+              if [[ -z "$APP_SITE" ]]; then
+                echo "Missing Firebase site id for App"
+                exit 1
+              fi
+              append_site "$APP_SITE"
+              VERIFY_VERSION_URL="https://${APP_SITE}.web.app/version.json"
+              VERIFY_ROUTE_URL="https://${APP_SITE}.web.app/App"
+              ;;
+            admin)
+              if [[ -z "$ADMIN_SITE" ]]; then
+                echo "Missing Firebase site id for Admin"
+                exit 1
+              fi
+              append_site "$ADMIN_SITE"
+              VERIFY_VERSION_URL="https://${ADMIN_SITE}.web.app/version.json"
+              VERIFY_ROUTE_URL="https://${ADMIN_SITE}.web.app/Admin"
+              ;;
+            all)
+              if [[ -z "$APP_SITE" || -z "$ADMIN_SITE" ]]; then
+                echo "Missing one or more Firebase site ids for all-target hosting deploy"
+                exit 1
+              fi
+              append_site "$APP_SITE"
+              append_site "$ADMIN_SITE"
+              VERIFY_VERSION_URL="https://${APP_SITE}.web.app/version.json"
+              VERIFY_ROUTE_URL="https://${APP_SITE}.web.app/App"
+              ;;
+            *)
+              echo "Unsupported hosting service: $SERVICE"
+              exit 1
+              ;;
+          esac
+
+          echo ']}' >> /tmp/firebase-hosting.json
+          echo "VERIFY_VERSION_URL=$VERIFY_VERSION_URL" >> "$GITHUB_ENV"
+          echo "VERIFY_ROUTE_URL=$VERIFY_ROUTE_URL" >> "$GITHUB_ENV"
+
+      - name: Deploy selected target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${NEEDS_HOSTING}" == "true" ]]; then
+            npx firebase deploy \
+              --project "$FB_PROJECT" \
+              --config /tmp/firebase-hosting.json \
+              --only hosting
+          fi
+
+          if [[ "${NEEDS_FUNCTIONS}" == "true" ]]; then
+            npx firebase deploy \
+              --project "$FB_PROJECT" \
+              --config app/firebase.json \
+              --only functions
+          fi
+        env:
+          FIREBASE_TOKEN: ${{ env.FIREBASE_TOKEN }}
+
+      - name: Verify deploy
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${VERIFY_ROUTE_URL:-}" ]]; then
+            STATUS=$(curl -sS -L -o /dev/null -w "%{http_code}" "$VERIFY_ROUTE_URL")
+            if [[ "$STATUS" -lt 200 || "$STATUS" -ge 400 ]]; then
+              echo "Route verification failed for $VERIFY_ROUTE_URL (status $STATUS)"
+              exit 1
+            fi
+          fi
+
+          if [[ -n "${VERIFY_VERSION_URL:-}" ]]; then
+            VERSION_JSON=$(curl -fsSL "$VERIFY_VERSION_URL")
+            if [[ -n "${{ inputs.gitSha }}" ]]; then
+              ACTUAL_SHA=$(printf '%s' "$VERSION_JSON" | jq -r '.gitSha // ""')
+              if [[ "$ACTUAL_SHA" != "${{ inputs.gitSha }}" ]]; then
+                echo "Version verification failed: expected gitSha ${{ inputs.gitSha }}, got $ACTUAL_SHA"
+                exit 1
+              fi
+            fi
+            if [[ -n "${{ inputs.version }}" ]]; then
+              ACTUAL_VERSION=$(printf '%s' "$VERSION_JSON" | jq -r '.version // ""')
+              if [[ "$ACTUAL_VERSION" != "${{ inputs.version }}" ]]; then
+                echo "Version verification failed: expected version ${{ inputs.version }}, got $ACTUAL_VERSION"
+                exit 1
+              fi
+            fi
+          fi
+
+      - name: Tag + GitHub Release (prod)
+        if: success() && inputs.environment == 'prod' && inputs.version != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_RELEASE_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ inputs.version }}"
+          SHA="${{ inputs.gitSha }}"
+          if [[ -z "$SHA" ]]; then
+            echo "gitSha is required for prod tagging"
+            exit 1
+          fi
+
+          if [[ "$VERSION" == v* ]]; then
+            TAG="$VERSION"
+          else
+            TAG="v$VERSION"
+          fi
+
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+
+          # Create tag ref (ignore if it already exists)
+          CREATE_REF_PAYLOAD=$(jq -cn --arg ref "refs/tags/$TAG" --arg sha "$SHA" '{ref:$ref, sha:$sha}')
+          STATUS=$(curl -sS -o /tmp/create_ref.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            --data "$CREATE_REF_PAYLOAD" \
+            "$API/git/refs" || true)
+          if [[ "$STATUS" != "201" && "$STATUS" != "422" ]]; then
+            echo "Failed to create tag ref (status $STATUS)"
+            cat /tmp/create_ref.json || true
+            exit 1
+          fi
+
+          # Create release (ignore if it already exists)
+          RELEASE_BODY="Ops action ${{ inputs.actionId }} deployed SHA $SHA"
+          CREATE_REL_PAYLOAD=$(jq -cn --arg tag "$TAG" --arg name "$TAG" --arg body "$RELEASE_BODY" '{tag_name:$tag, name:$name, body:$body, draft:false, prerelease:false}')
+          STATUS2=$(curl -sS -o /tmp/create_rel.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            --data "$CREATE_REL_PAYLOAD" \
+            "$API/releases" || true)
+          if [[ "$STATUS2" != "201" && "$STATUS2" != "422" ]]; then
+            echo "Failed to create release (status $STATUS2)"
+            cat /tmp/create_rel.json || true
+            exit 1
+          fi
+
+      - name: Report success to Ops
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_URL="https://us-central1-${FB_PROJECT}.cloudfunctions.net/opsRouter/actions/report"
+          PAYLOAD=$(jq -cn --arg id "${{ inputs.actionId }}" --arg url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --arg msg "Deploy succeeded" '{actionId:$id, ok:true, externalUrl:$url, message:$msg}')
+          SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$OPS_CI_HMAC_SECRET" -hex | sed 's/^.* //')
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Ops-Signature: sha256=$SIG" \
+            --data "$PAYLOAD" \
+            "$REPORT_URL"
+
+      - name: Report failure to Ops
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_URL="https://us-central1-${FB_PROJECT}.cloudfunctions.net/opsRouter/actions/report"
+          PAYLOAD=$(jq -cn --arg id "${{ inputs.actionId }}" --arg url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --arg msg "Deploy failed (see workflow run)" '{actionId:$id, ok:false, externalUrl:$url, message:$msg}')
+          SIG=$(printf '%s' "$PAYLOAD" | openssl dgst -sha256 -hmac "$OPS_CI_HMAC_SECRET" -hex | sed 's/^.* //')
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Ops-Signature: sha256=$SIG" \
+            --data "$PAYLOAD" \
+            "$REPORT_URL"

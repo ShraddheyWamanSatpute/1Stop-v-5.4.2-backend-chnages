@@ -1,0 +1,21 @@
+id,name,position,department,salary_annual,salary_hourly,employment_type,min_hours_week,max_hours_week,holiday_days,availability_days,availability_hours,notes
+1,Maria Rodriguez,General Manager,Management,45000.0,,Full Time,40,50,25,Monday-Saturday,8:00-22:00,Available for emergency calls Sunday
+2,James Thompson,Assistant Manager,Management,32000.0,,Full Time,35,45,22,Tuesday-Sunday,10:00-23:00,Covers Monday GM off-days
+3,Sophie Chen,Head Chef,Kitchen,38000.0,,Full Time,40,55,20,Wednesday-Sunday,12:00-23:30,Tuesday-Wednesday prep days
+4,Marco Italiano,Sous Chef,Kitchen,28000.0,,Full Time,35,48,20,Monday-Saturday,14:00-23:00,
+5,Ahmed Hassan,Line Cook,Kitchen,24000.0,,Full Time,32,40,20,Tuesday-Sunday,15:00-23:30,
+6,Katie Williams,Line Cook,Kitchen,23500.0,,Full Time,32,40,20,"Monday, Wednesday-Sunday",15:00-23:30,Unavailable Tuesdays (college class)
+7,Tom Bradley,Prep Cook,Kitchen,22000.0,,Full Time,30,40,20,Monday-Saturday,9:00-18:00,
+8,Lisa Park,Prep Cook,Kitchen,,11.5,Part Time,16,28,20,"Monday, Wednesday, Friday, Saturday",8:00-16:00,University student
+9,David Mitchell,Head Waiter/Maître d',Front of House,26000.0,,Full Time,35,45,22,Wednesday-Sunday,17:00-23:30,
+10,Emma Johnson,Senior Waitress,Front of House,23000.0,,Full Time,32,40,20,Monday-Saturday,11:00-23:00,Plus tips
+11,Carlos Martinez,Waiter,Front of House,21500.0,,Full Time,30,40,20,Tuesday-Sunday,12:00-22:30,Plus tips
+12,Sarah O'Connor,Waitress,Front of House,21000.0,,Full Time,30,40,20,"Monday, Thursday-Sunday",17:00-23:30,"Plus tips, Unavailable Tuesday-Wednesday (other job)"
+13,Jake Peterson,Waiter,Front of House,,10.8,Part Time,12,25,20,Friday-Sunday,18:00-23:30,"Plus tips, Weekend specialist, university student"
+14,Anna Kowalski,Waitress,Front of House,,10.8,Part Time,15,30,20,"Monday, Tuesday, Thursday",11:30-21:00,"Plus tips, Mother of young children"
+15,"Robert ""Bobby"" Taylor",Head Bartender,Bar,25000.0,,Full Time,35,45,20,Wednesday-Sunday,18:00-01:00,Plus tips
+16,Mia Thompson,Bartender,Bar,22500.0,,Full Time,30,40,20,Monday-Saturday,17:00-00:30,Plus tips
+17,Chris Davies,Bartender,Bar,,11.2,Part Time,16,28,20,Thursday-Sunday,19:00-01:00,"Plus tips, Musician, tours occasionally"
+18,Gloria Santos,Kitchen Porter/Dishwasher,Support,21000.0,,Full Time,32,42,20,Monday-Saturday,16:00-00:00,
+19,Michael O'Brien,Kitchen Porter,Support,,10.5,Part Time,20,32,20,"Tuesday, Wednesday, Friday-Sunday",18:00-01:00,"Retired, looking for extra income"
+20,Jenny Walsh,Cleaner/Maintenance,Support,20500.0,,Full Time,25,35,20,Monday-Saturday,7:00-13:00,Also handles basic maintenance tasks

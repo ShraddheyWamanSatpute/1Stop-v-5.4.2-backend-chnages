@@ -1,0 +1,127 @@
+/* Resize handle styles */
+.react-resizable {
+  position: relative;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  box-sizing: border-box;
+  background-color: transparent;
+  background-image: none; /* Remove the visible square */
+  /* No transition during drag — "transition: all" made resize feel sticky/laggy */
+  transition: none;
+  opacity: 0; /* Make handles invisible */
+  z-index: 10;
+}
+
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+}
+
+.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+}
+
+.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+}
+
+.react-resizable-handle-w,
+.react-resizable-handle-e {
+  top: 50%;
+  margin-top: -12px;
+  cursor: ew-resize;
+}
+
+.react-resizable-handle-w {
+  left: 0;
+}
+
+.react-resizable-handle-e {
+  right: 0;
+}
+
+.react-resizable-handle-n,
+.react-resizable-handle-s {
+  left: 50%;
+  margin-left: -12px;
+  cursor: ns-resize;
+}
+
+.react-resizable-handle-n {
+  top: 0;
+}
+
+.react-resizable-handle-s {
+  bottom: 0;
+}
+
+/* Hover effects - keep handles invisible but functional */
+.react-resizable-handle:hover {
+  background-color: transparent; /* Keep transparent */
+  border-radius: 4px;
+  opacity: 0; /* Keep invisible */
+  transform: none; /* Remove scaling */
+  box-shadow: none; /* Remove shadow */
+}
+
+/* Enhanced resize handle visibility - keep invisible */
+.react-resizable:hover .react-resizable-handle {
+  opacity: 0; /* Keep invisible */
+}
+
+.react-resizable:hover .react-resizable-handle:hover {
+  opacity: 0; /* Keep invisible */
+  background-color: transparent; /* Keep transparent */
+  box-shadow: none; /* Remove shadow */
+}
+
+/* Keep resize handles invisible on mobile/touch devices too */
+@media (hover: none) and (pointer: coarse) {
+  .react-resizable-handle {
+    opacity: 0; /* Keep invisible on mobile */
+    background-color: transparent; /* Keep transparent */
+  }
+}
+
+/* Ensure modal is above everything */
+.reusable-modal {
+  z-index: 9999 !important;
+}
+
+/* Keep dotted outline invisible */
+.react-resizable {
+  border: none; /* Remove dotted border completely */
+  transition: none; /* Remove transition */
+}
+
+.react-resizable:hover {
+  border: none; /* Keep border invisible on hover */
+}
+
+/* Ensure resize handles stay invisible when hovering over the modal */
+.react-resizable:hover .react-resizable-handle {
+  opacity: 0 !important; /* Keep invisible */
+}
+
+/* Make sure the resize handles don't get hidden by other elements */
+.react-resizable-handle {
+  pointer-events: auto !important;
+  z-index: 1000 !important;
+}

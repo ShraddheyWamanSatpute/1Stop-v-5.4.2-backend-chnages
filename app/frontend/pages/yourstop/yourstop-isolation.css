@@ -1,0 +1,13 @@
+/* Minimal isolation layer so YourStop styles don't inherit main app overrides */
+
+html.yourstop-active {
+  font-size: 100% !important;
+}
+
+.yourstop-app {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 100% !important;
+  min-height: 100vh !important;
+}
+

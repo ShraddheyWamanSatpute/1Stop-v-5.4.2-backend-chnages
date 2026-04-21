@@ -1,0 +1,49 @@
+{
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "/App",
+        "type": 301
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/App/**",
+        "destination": "/App/index.html"
+      },
+      {
+        "source": "/ESS/**",
+        "destination": "/ESS/index.html"
+      },
+      {
+        "source": "**",
+        "destination": "/App/index.html"
+      }
+    ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
+  "database": {
+    "rules": "../database.rules.json"
+  },
+  "emulators": {
+    "functions": {
+      "port": 5002
+    },
+    "database": {
+      "port": 9000
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}

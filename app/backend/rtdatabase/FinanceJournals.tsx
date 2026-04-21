@@ -1,0 +1,462 @@
+import { ref, get, set, push, update, remove } from "firebase/database"
+import { db } from "../services/Firebase"
+import type { 
+  Journal,
+  JournalLine,
+  PeriodLock,
+  Dimension,
+  OpeningBalance,
+  Account
+} from "../interfaces/Finance"
+
+// Journals - Manual and System Journal Entries
+export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
+  try {
+    const journalsRef = ref(db, `${basePath}/journals`)
+    const snapshot = await get(journalsRef)
+
+    if (snapshot.exists()) {
+      return Object.entries(snapshot.val())
+        .map(([id, data]: [string, any]) => ({
+          id,
+          ...data,
+        }))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching journals:", error)
+    throw error
+  }
+}
+
+export const createJournal = async (basePath: string, journal: Omit<Journal, "id">): Promise<Journal> => {
+  try {
+    // Validate debits equal credits
+    const totalDebit = journal.journal_lines.reduce((sum, line) => sum + (line.debit || 0), 0)
+    const totalCredit = journal.journal_lines.reduce((sum, line) => sum + (line.credit || 0), 0)
+    
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      throw new Error(`Journal entries must balance. Debits: ${totalDebit}, Credits: ${totalCredit}`)
+    }
+
+    const journalsRef = ref(db, `${basePath}/journals`)
+    const newJournalRef = push(journalsRef)
+    const id = newJournalRef.key as string
+
+    // Generate journal number if not provided
+    const journalNumber = journal.journal_number || `JRN-${Date.now()}`
+
+    // Create journal lines with IDs
+    const journalLines: JournalLine[] = journal.journal_lines.map((line, index) => ({
+      ...line,
+      id: line.id || `${id}-line-${index}`,
+      journal_id: id,
+      created_at: line.created_at || new Date().toISOString(),
+    }))
+
+    const newJournal: Journal = {
+      ...journal,
+      id,
+      journal_number: journalNumber,
+      journal_lines: journalLines,
+      total_debit: totalDebit,
+      total_credit: totalCredit,
+      is_reversed: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    await set(newJournalRef, newJournal)
+    return newJournal
+  } catch (error) {
+    console.error("Error creating journal:", error)
+    throw error
+  }
+}
+
+export const updateJournal = async (basePath: string, journalId: string, updates: Partial<Journal>): Promise<void> => {
+  try {
+    const journalRef = ref(db, `${basePath}/journals/${journalId}`)
+    
+    // If updating journal lines, validate balance
+    if (updates.journal_lines) {
+      const totalDebit = updates.journal_lines.reduce((sum, line) => sum + (line.debit || 0), 0)
+      const totalCredit = updates.journal_lines.reduce((sum, line) => sum + (line.credit || 0), 0)
+      
+      if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        throw new Error(`Journal entries must balance. Debits: ${totalDebit}, Credits: ${totalCredit}`)
+      }
+
+      updates.total_debit = totalDebit
+      updates.total_credit = totalCredit
+    }
+
+    const updatedFields = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+    await update(journalRef, updatedFields)
+  } catch (error) {
+    console.error("Error updating journal:", error)
+    throw error
+  }
+}
+
+export const deleteJournal = async (basePath: string, journalId: string): Promise<void> => {
+  try {
+    const journalRef = ref(db, `${basePath}/journals/${journalId}`)
+    const snapshot = await get(journalRef)
+    
+    if (snapshot.exists()) {
+      const journal = snapshot.val()
+      // Only allow deletion of draft or pending journals
+      if (journal.status === "posted" || journal.status === "approved") {
+        throw new Error("Cannot delete posted or approved journals. Use reverse journal instead.")
+      }
+    }
+    
+    await remove(journalRef)
+  } catch (error) {
+    console.error("Error deleting journal:", error)
+    throw error
+  }
+}
+
+export const approveJournal = async (basePath: string, journalId: string, approvedBy: string): Promise<void> => {
+  try {
+    const journalRef = ref(db, `${basePath}/journals/${journalId}`)
+    await update(journalRef, {
+      status: "approved",
+      approved_by: approvedBy,
+      approved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.error("Error approving journal:", error)
+    throw error
+  }
+}
+
+export const postJournal = async (basePath: string, journalId: string, postedBy: string): Promise<void> => {
+  try {
+    const journalRef = ref(db, `${basePath}/journals/${journalId}`)
+    const snapshot = await get(journalRef)
+    
+    if (!snapshot.exists()) {
+      throw new Error("Journal not found")
+    }
+    
+    const journal = snapshot.val()
+    
+    // Check if period is locked
+    const periodLocksRef = ref(db, `${basePath}/period_locks`)
+    const locksSnapshot = await get(periodLocksRef)
+    
+    if (locksSnapshot.exists()) {
+      const locks = locksSnapshot.val()
+      const journalDate = new Date(journal.date)
+      
+      for (const lock of Object.values(locks) as PeriodLock[]) {
+        if (lock.is_active) {
+          const lockStart = new Date(lock.period_start)
+          const lockEnd = new Date(lock.period_end)
+          
+          if (journalDate >= lockStart && journalDate <= lockEnd) {
+            throw new Error(`Cannot post journal. Period ${lock.period_start} to ${lock.period_end} is locked.`)
+          }
+        }
+      }
+    }
+    
+    // Update journal status
+    await update(journalRef, {
+      status: "posted",
+      posted_by: postedBy,
+      posted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    
+    // Update account balances
+    const accountsRef = ref(db, `${basePath}/accounts`)
+    const accountsSnapshot = await get(accountsRef)
+    
+    if (accountsSnapshot.exists()) {
+      const accounts = accountsSnapshot.val()
+      const updates: Record<string, any> = {}
+      
+      for (const line of journal.journal_lines) {
+        if (accounts[line.account_id]) {
+          const account = accounts[line.account_id]
+          let balanceChange = 0
+          
+          // Calculate balance change based on account type
+          if (["asset", "expense"].includes(account.type)) {
+            balanceChange = (line.debit || 0) - (line.credit || 0)
+          } else {
+            balanceChange = (line.credit || 0) - (line.debit || 0)
+          }
+          
+          updates[`${line.account_id}/balance`] = (account.balance || 0) + balanceChange
+          updates[`${line.account_id}/updatedAt`] = new Date().toISOString()
+        }
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        await update(accountsRef, updates)
+      }
+    }
+  } catch (error) {
+    console.error("Error posting journal:", error)
+    throw error
+  }
+}
+
+export const reverseJournal = async (basePath: string, journalId: string, reversedBy: string, reverseDate: string): Promise<Journal> => {
+  try {
+    const journalRef = ref(db, `${basePath}/journals/${journalId}`)
+    const snapshot = await get(journalRef)
+    
+    if (!snapshot.exists()) {
+      throw new Error("Journal not found")
+    }
+    
+    const originalJournal = snapshot.val()
+    
+    if (originalJournal.is_reversed) {
+      throw new Error("Journal has already been reversed")
+    }
+    
+    // Create reversed journal lines
+    const reversedLines: JournalLine[] = originalJournal.journal_lines.map((line: JournalLine, index: number) => ({
+      id: `${journalId}-reversed-line-${index}`,
+      journal_id: `${journalId}-reversed`,
+      account_id: line.account_id,
+      debit: line.credit, // Swap debit and credit
+      credit: line.debit,
+      description: `Reversal: ${line.description || ""}`,
+      tax_rate_id: line.tax_rate_id,
+      dimension_ids: line.dimension_ids,
+      created_at: new Date().toISOString(),
+    }))
+    
+    // Create reversal journal
+    const reversedJournal: Omit<Journal, "id"> = {
+      entity_id: originalJournal.entity_id,
+      source: "reversal",
+      date: reverseDate,
+      status: "draft",
+      description: `Reversal of ${originalJournal.journal_number || journalId}`,
+      reference: `REV-${originalJournal.journal_number || journalId}`,
+      journal_lines: reversedLines,
+      total_debit: originalJournal.total_credit,
+      total_credit: originalJournal.total_debit,
+      is_reversed: false,
+      original_journal_id: journalId,
+      created_by: reversedBy,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    
+    const newReversedJournal = await createJournal(basePath, reversedJournal)
+    
+    // Mark original as reversed
+    await update(journalRef, {
+      is_reversed: true,
+      reversed_by: reversedBy,
+      reversed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    
+    return newReversedJournal
+  } catch (error) {
+    console.error("Error reversing journal:", error)
+    throw error
+  }
+}
+
+// Period Locks
+export const fetchPeriodLocks = async (basePath: string): Promise<PeriodLock[]> => {
+  try {
+    const locksRef = ref(db, `${basePath}/period_locks`)
+    const snapshot = await get(locksRef)
+
+    if (snapshot.exists()) {
+      return Object.entries(snapshot.val()).map(([id, data]: [string, any]) => ({
+        id,
+        ...data,
+      }))
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching period locks:", error)
+    throw error
+  }
+}
+
+export const createPeriodLock = async (basePath: string, lock: Omit<PeriodLock, "id">): Promise<PeriodLock> => {
+  try {
+    const locksRef = ref(db, `${basePath}/period_locks`)
+    const newLockRef = push(locksRef)
+    const id = newLockRef.key as string
+
+    const newLock: PeriodLock = {
+      ...lock,
+      id,
+    }
+
+    await set(newLockRef, newLock)
+    return newLock
+  } catch (error) {
+    console.error("Error creating period lock:", error)
+    throw error
+  }
+}
+
+export const updatePeriodLock = async (basePath: string, lockId: string, updates: Partial<PeriodLock>): Promise<void> => {
+  try {
+    const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
+    await update(lockRef, updates)
+  } catch (error) {
+    console.error("Error updating period lock:", error)
+    throw error
+  }
+}
+
+export const deletePeriodLock = async (basePath: string, lockId: string): Promise<void> => {
+  try {
+    const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
+    await remove(lockRef)
+  } catch (error) {
+    console.error("Error deleting period lock:", error)
+    throw error
+  }
+}
+
+// Dimensions (Tracking Categories)
+export const fetchDimensions = async (basePath: string): Promise<Dimension[]> => {
+  try {
+    const dimensionsRef = ref(db, `${basePath}/dimensions`)
+    const snapshot = await get(dimensionsRef)
+
+    if (snapshot.exists()) {
+      return Object.entries(snapshot.val()).map(([id, data]: [string, any]) => ({
+        id,
+        ...data,
+      }))
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching dimensions:", error)
+    throw error
+  }
+}
+
+export const createDimension = async (basePath: string, dimension: Omit<Dimension, "id">): Promise<Dimension> => {
+  try {
+    const dimensionsRef = ref(db, `${basePath}/dimensions`)
+    const newDimensionRef = push(dimensionsRef)
+    const id = newDimensionRef.key as string
+
+    const newDimension: Dimension = {
+      ...dimension,
+      id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    await set(newDimensionRef, newDimension)
+    return newDimension
+  } catch (error) {
+    console.error("Error creating dimension:", error)
+    throw error
+  }
+}
+
+export const updateDimension = async (basePath: string, dimensionId: string, updates: Partial<Dimension>): Promise<void> => {
+  try {
+    const dimensionRef = ref(db, `${basePath}/dimensions/${dimensionId}`)
+    const updatedFields = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+    await update(dimensionRef, updatedFields)
+  } catch (error) {
+    console.error("Error updating dimension:", error)
+    throw error
+  }
+}
+
+export const deleteDimension = async (basePath: string, dimensionId: string): Promise<void> => {
+  try {
+    const dimensionRef = ref(db, `${basePath}/dimensions/${dimensionId}`)
+    await remove(dimensionRef)
+  } catch (error) {
+    console.error("Error deleting dimension:", error)
+    throw error
+  }
+}
+
+// Opening Balances
+export const fetchOpeningBalances = async (basePath: string): Promise<OpeningBalance[]> => {
+  try {
+    const balancesRef = ref(db, `${basePath}/opening_balances`)
+    const snapshot = await get(balancesRef)
+
+    if (snapshot.exists()) {
+      return Object.entries(snapshot.val()).map(([id, data]: [string, any]) => ({
+        id,
+        ...data,
+      }))
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching opening balances:", error)
+    throw error
+  }
+}
+
+export const createOpeningBalance = async (basePath: string, balance: Omit<OpeningBalance, "id">): Promise<OpeningBalance> => {
+  try {
+    const balancesRef = ref(db, `${basePath}/opening_balances`)
+    const newBalanceRef = push(balancesRef)
+    const id = newBalanceRef.key as string
+
+    const newBalance: OpeningBalance = {
+      ...balance,
+      id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    await set(newBalanceRef, newBalance)
+    return newBalance
+  } catch (error) {
+    console.error("Error creating opening balance:", error)
+    throw error
+  }
+}
+
+export const updateOpeningBalance = async (basePath: string, balanceId: string, updates: Partial<OpeningBalance>): Promise<void> => {
+  try {
+    const balanceRef = ref(db, `${basePath}/opening_balances/${balanceId}`)
+    const updatedFields = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+    await update(balanceRef, updatedFields)
+  } catch (error) {
+    console.error("Error updating opening balance:", error)
+    throw error
+  }
+}
+
+export const deleteOpeningBalance = async (basePath: string, balanceId: string): Promise<void> => {
+  try {
+    const balanceRef = ref(db, `${basePath}/opening_balances/${balanceId}`)
+    await remove(balanceRef)
+  } catch (error) {
+    console.error("Error deleting opening balance:", error)
+    throw error
+  }
+}

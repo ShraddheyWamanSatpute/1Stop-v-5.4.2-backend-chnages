@@ -1,0 +1,6 @@
+{
+  "ok": false,
+  "error": "ops-unavailable",
+  "message": "Ops API is not deployed for this hosting target. The previous hosting rewrite pointed to Cloud Functions, but functions deploy is currently blocked (billing/Secret Manager requirement)."
+}
+

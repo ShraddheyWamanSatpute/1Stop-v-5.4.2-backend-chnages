@@ -1,0 +1,304 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+/* Override main app's font-size reduction for YourStop */
+html.yourstop-active {
+  font-size: 100% !important;
+}
+
+/* Isolate YourStop from main app styles */
+.yourstop-app {
+  /* Reset any main app styles */
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 100% !important;
+  font-family: 'Inter', sans-serif !important;
+  line-height: 1.6 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 100vh !important;
+}
+
+.yourstop-app *,
+.yourstop-app *::before,
+.yourstop-app *::after {
+  box-sizing: border-box;
+}
+
+/* Ensure proper spacing and layout */
+.yourstop-app main {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Modern Minimal Color Palette */
+    --background: 0 0% 100%; /* Pure white */
+    --foreground: 240 10% 3.9%; /* Near black */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%; /* Deep charcoal */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%; /* Light gray */
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 240 5.9% 10%;
+    
+    /* Custom Brand Colors */
+    --brand-primary: 262 83% 58%; /* Purple */
+    --brand-secondary: 227 55% 20%; /* Navy (var(--brand-navy)) */
+    --brand-accent: 47 96% 53%; /* Gold */
+    --brand-success: 142 76% 36%; /* Green */
+    --brand-warning: 38 92% 50%; /* Orange */
+    --brand-error: 0 84% 60%; /* Red */
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--brand-primary)) 0%, hsl(var(--brand-secondary)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--brand-accent)) 0%, hsl(var(--brand-primary)) 100%);
+    --gradient-neutral: linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--secondary)) 100%);
+  }
+  
+  .dark {
+    --background: 240 10% 3.9%; /* Dark background */
+    --foreground: 0 0% 98%; /* Light text */
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%; /* Light primary in dark mode */
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 94.1%;
+    --sidebar-primary-foreground: 240 5.9% 10%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+@layer components {
+  /* Typography System */
+  .font-display {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  
+  .font-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  
+  .font-body {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+  
+  .font-body-medium {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  
+  .font-body-semibold {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  
+  .font-caption {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    line-height: 1.4;
+    font-size: 0.875rem;
+  }
+  
+  /* Modern Card System */
+  .card-modern {
+    @apply bg-card border border-border/50 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300;
+  }
+  
+  .card-elevated {
+    @apply bg-card border border-border/30 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+  
+  .card-glass {
+    @apply bg-card/80 backdrop-blur-sm border border-border/20 rounded-2xl shadow-lg;
+  }
+  
+  /* Button System */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 font-body-semibold px-6 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 font-body-medium px-6 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-secondary/20;
+  }
+  
+  .btn-outline {
+    @apply border border-border text-foreground hover:bg-accent hover:text-accent-foreground font-body-medium px-6 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/20;
+  }
+  
+  .btn-ghost {
+    @apply text-muted-foreground hover:text-foreground hover:bg-accent font-body-medium px-4 py-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/20;
+  }
+  
+  .btn-brand {
+    background: var(--gradient-primary);
+    @apply text-white font-body-semibold px-6 py-3 rounded-xl transition-all duration-200 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-brand-primary/20;
+  }
+  
+  /* Input System */
+  .input-modern {
+    @apply bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200;
+  }
+  
+  .input-glass {
+    @apply bg-background/50 backdrop-blur-sm border border-border/30 rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200;
+  }
+  
+  /* Restaurant Card */
+  .restaurant-card {
+    @apply card-modern overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
+  }
+  
+  .restaurant-card:hover {
+    @apply shadow-xl;
+  }
+  
+  /* Layout Utilities */
+  .section-padding {
+    @apply py-16 px-4 sm:px-6 lg:px-8;
+  }
+  
+  .container-modern {
+    @apply max-w-7xl mx-auto;
+  }
+  
+  .grid-modern {
+    @apply grid gap-6 sm:gap-8;
+  }
+  
+  /* Animation Utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.4s ease-out;
+  }
+  
+  /* Status Indicators */
+  .status-online {
+    @apply bg-brand-success text-white;
+  }
+  
+  .status-busy {
+    @apply bg-brand-warning text-white;
+  }
+  
+  .status-offline {
+    @apply bg-muted text-muted-foreground;
+  }
+  
+  /* Price Range Colors */
+  .price-1 {
+    @apply bg-brand-success text-white;
+  }
+  
+  .price-2 {
+    @apply bg-brand-accent text-white;
+  }
+  
+  .price-3 {
+    @apply bg-brand-warning text-white;
+  }
+  
+  .price-4 {
+    @apply bg-brand-error text-white;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

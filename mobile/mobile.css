@@ -1,0 +1,18 @@
+/* Mobile-only: hide scrollbars while preserving scroll behavior. */
+
+/* Firefox */
+* {
+  scrollbar-width: none;
+}
+
+/* Legacy Edge/IE */
+* {
+  -ms-overflow-style: none;
+}
+
+/* WebKit (Chrome/Safari/iOS) */
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+

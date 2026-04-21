@@ -1,0 +1,154 @@
+{
+  "generatedAt": "2026-04-15T23:35:39.941Z",
+  "moduleCount": 7,
+  "exportCount": 31,
+  "modules": [
+    {
+      "name": "AdminProfile",
+      "file": "admin/backend/rtdatabase/AdminProfile.tsx",
+      "exports": [
+        "getAdminProfile",
+        "setAdminProfile",
+        "updateAdminProfile",
+        "deleteAdminProfile"
+      ],
+      "categories": {
+        "getAdminProfile": "read",
+        "setAdminProfile": "write",
+        "updateAdminProfile": "update",
+        "deleteAdminProfile": "delete"
+      },
+      "callsites": [
+        "admin/backend/functions/AdminProfile.tsx"
+      ],
+      "callsiteCount": 1
+    },
+    {
+      "name": "Analytics",
+      "file": "admin/backend/rtdatabase/Analytics.tsx",
+      "exports": [
+        "getAnalyticsData"
+      ],
+      "categories": {
+        "getAnalyticsData": "read"
+      },
+      "callsites": [
+        "admin/backend/functions/Analytics.tsx"
+      ],
+      "callsiteCount": 1
+    },
+    {
+      "name": "Content",
+      "file": "admin/backend/rtdatabase/Content.tsx",
+      "exports": [
+        "getContentSchedule",
+        "addContentPost",
+        "updateContentPost",
+        "publishContentPost",
+        "deleteContentPost",
+        "getPlatformSettings",
+        "addPlatformSettings",
+        "updatePlatformSettings"
+      ],
+      "categories": {
+        "getContentSchedule": "read",
+        "addContentPost": "write",
+        "updateContentPost": "update",
+        "publishContentPost": "other",
+        "deleteContentPost": "delete",
+        "getPlatformSettings": "read",
+        "addPlatformSettings": "write",
+        "updatePlatformSettings": "update"
+      },
+      "callsites": [
+        "admin/backend/functions/Content.tsx"
+      ],
+      "callsiteCount": 1
+    },
+    {
+      "name": "Marketing",
+      "file": "admin/backend/rtdatabase/Marketing.tsx",
+      "exports": [
+        "getMarketingEvents",
+        "addMarketingEvent",
+        "updateMarketingEvent",
+        "deleteMarketingEvent"
+      ],
+      "categories": {
+        "getMarketingEvents": "read",
+        "addMarketingEvent": "write",
+        "updateMarketingEvent": "update",
+        "deleteMarketingEvent": "delete"
+      },
+      "callsites": [
+        "admin/backend/functions/Marketing.tsx"
+      ],
+      "callsiteCount": 1
+    },
+    {
+      "name": "Notes",
+      "file": "admin/backend/rtdatabase/Notes.tsx",
+      "exports": [
+        "getNotes",
+        "addNote",
+        "updateNote",
+        "deleteNote"
+      ],
+      "categories": {
+        "getNotes": "read",
+        "addNote": "write",
+        "updateNote": "update",
+        "deleteNote": "delete"
+      },
+      "callsites": [
+        "admin/backend/functions/Notes.tsx"
+      ],
+      "callsiteCount": 1
+    },
+    {
+      "name": "QR",
+      "file": "admin/backend/rtdatabase/QR.tsx",
+      "exports": [
+        "addPersonalQR",
+        "getPersonalQRs",
+        "getPersonalQRByUrl",
+        "updatePersonalQR",
+        "incrementQRScans",
+        "addGenericQR",
+        "getGenericQRs",
+        "addLead",
+        "getLeads"
+      ],
+      "categories": {
+        "addPersonalQR": "write",
+        "getPersonalQRs": "read",
+        "getPersonalQRByUrl": "read",
+        "updatePersonalQR": "update",
+        "incrementQRScans": "other",
+        "addGenericQR": "write",
+        "getGenericQRs": "read",
+        "addLead": "write",
+        "getLeads": "read"
+      },
+      "callsites": [
+        "admin/backend/functions/QR.tsx"
+      ],
+      "callsiteCount": 1
+    },
+    {
+      "name": "Settings",
+      "file": "admin/backend/rtdatabase/Settings.tsx",
+      "exports": [
+        "getSettings"
+      ],
+      "categories": {
+        "getSettings": "read"
+      },
+      "callsites": [
+        "admin/backend/context/AdminContext.tsx",
+        "admin/frontend/qr/Landing.tsx"
+      ],
+      "callsiteCount": 2
+    }
+  ]
+}
