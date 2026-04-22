@@ -133,7 +133,8 @@ const getSingleRow = async (table: string, filters: Record<string, string>) => {
 const listRows = async (table: string, basePath: string) => {
   const params = new URLSearchParams()
   params.set("base_path", `eq.${basePath}`)
-  params.set("select", "id,payload,created_at")
+  // Include updated_at so callers always have a complete timestamp picture.
+  params.set("select", "id,payload,created_at,updated_at")
   params.set("order", "created_at.asc")
   const rows = (await supabaseRequest(`${table}?${params.toString()}`, { method: "GET" })) as Array<any>
   return (rows || []).map((row) => ({ ...(row?.payload || {}), id: row?.id }))
@@ -173,6 +174,12 @@ const deleteRow = async (table: string, filters: Record<string, string>) => {
   })
 }
 
+const safeTimestamp = (raw: any, fallback: number): number => {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw
+  const parsed = Date.parse(String(raw || ""))
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 const createEntityRow = (
   scope: BookingScope,
   id: string,
@@ -180,6 +187,13 @@ const createEntityRow = (
   opts?: { name?: string; status?: string | null; code?: string | null; createdAt?: number },
 ) => {
   const cleaned = stripUndefinedDeep(payload)
+  const now = Date.now()
+  // Guard against NaN in created_at: Date.parse("invalid") returns NaN which the
+  // Supabase bigint column would reject. Fall back to current time when invalid.
+  const createdAt = opts?.createdAt !== undefined
+    ? opts.createdAt
+    : safeTimestamp(cleaned?.createdAt || cleaned?.timeAdded, now)
+
   return {
     id,
     company_id: scope.companyId,
@@ -193,8 +207,8 @@ const createEntityRow = (
       ...cleaned,
       id,
     },
-    created_at: opts?.createdAt ?? Date.parse(cleaned?.createdAt || cleaned?.timeAdded || new Date().toISOString()),
-    updated_at: Date.now(),
+    created_at: createdAt,
+    updated_at: now,
   }
 }
 
@@ -206,12 +220,24 @@ const upsertEntity = async (
   opts?: { name?: string; status?: string | null; code?: string | null; createdAt?: number },
 ) => {
   const existing = await getSingleRow(table, { id, base_path: scope.basePath })
+  // Always stamp updatedAt in the payload so readers see a consistent timestamp
+  // matching the DB-level updated_at column — without this, a PATCH with only a
+  // few changed fields would leave the JSON blob's updatedAt stale.
   const mergedPayload = {
     ...(existing?.payload || {}),
     ...stripUndefinedDeep(payload),
     id,
+    updatedAt: new Date().toISOString(),
   }
-  const row = createEntityRow(scope, id, mergedPayload, opts)
+  // Preserve original createdAt from the existing row so it is never overwritten.
+  if (existing?.payload?.createdAt && !mergedPayload.createdAt) {
+    mergedPayload.createdAt = existing.payload.createdAt
+  }
+  const row = createEntityRow(scope, id, mergedPayload, {
+    ...opts,
+    // Preserve the original created_at column timestamp when updating.
+    createdAt: existing ? (existing.created_at ?? undefined) : opts?.createdAt,
+  })
 
   if (!existing) await insertRow(table, row)
   else await patchRow(table, { id, base_path: scope.basePath }, row)
@@ -391,10 +417,20 @@ export const handleBookingsDataRequest = async ({ req, res, path, body, user }: 
           code: null,
         }),
     },
+    locations: {
+      table: "app_booking_locations",
+      list: (scope) => listRows("app_booking_locations", scope.basePath),
+      upsert: (scope, id, payload) =>
+        upsertEntity("app_booking_locations", scope, id, payload, {
+          name: payload?.name || id,
+          status: payload?.active === false ? "inactive" : "active",
+          code: null,
+        }),
+    },
   }
 
   const listMatch = pathname.match(
-    /^\/data\/bookings\/(bookings|tables|tableTypes|bookingTypes|statuses|waitlist|customers|floorPlans|tags|preorderProfiles)$/,
+    /^\/data\/bookings\/(bookings|tables|tableTypes|bookingTypes|statuses|waitlist|customers|floorPlans|tags|preorderProfiles|locations)$/,
   )
   if (listMatch && method === "GET") {
     const scope = parseBookingScope(getQuery("basePath"))
@@ -408,8 +444,23 @@ export const handleBookingsDataRequest = async ({ req, res, path, body, user }: 
     const scope = parseBookingScope(getQuery("basePath"))
     await assertCompanyAccess(user.uid, scope.companyId)
     const wanted = getQuery("date")
-    const rows = (await entityMap.bookings.list(scope)).filter((booking) => String(booking?.date || "") === wanted)
-    send(200, { ok: true, rows })
+    // Use the indexed `code` column (set to booking.date on insert) instead of
+    // fetching all bookings and filtering in memory — avoids a full-table scan
+    // on high-volume sites.
+    if (wanted) {
+      const params = new URLSearchParams()
+      params.set("base_path", `eq.${scope.basePath}`)
+      params.set("code", `eq.${wanted}`)
+      params.set("select", "id,payload,created_at,updated_at")
+      params.set("order", "created_at.asc")
+      const rawRows = (await supabaseRequest(`app_bookings?${params.toString()}`, { method: "GET" })) as Array<any>
+      const rows = (rawRows || []).map((row) => ({ ...(row?.payload || {}), id: row?.id }))
+      send(200, { ok: true, rows })
+    } else {
+      // No date provided — fall back to full list (caller should always supply a date)
+      const rows = await entityMap.bookings.list(scope)
+      send(200, { ok: true, rows })
+    }
     return
   }
 
@@ -429,8 +480,22 @@ export const handleBookingsDataRequest = async ({ req, res, path, body, user }: 
   }
 
   const itemMatch = pathname.match(
-    /^\/data\/bookings\/(bookings|tables|tableTypes|bookingTypes|statuses|waitlist|customers|floorPlans|tags|preorderProfiles)\/([^/]+)$/,
+    /^\/data\/bookings\/(bookings|tables|tableTypes|bookingTypes|statuses|waitlist|customers|floorPlans|tags|preorderProfiles|locations)\/([^/]+)$/,
   )
+  if (itemMatch && method === "GET") {
+    const scope = parseBookingScope(getQuery("basePath"))
+    await assertCompanyAccess(user.uid, scope.companyId)
+    const entity = itemMatch[1]
+    const id = decodeURIComponent(itemMatch[2])
+    const existing = await getSingleRow(entityMap[entity].table, { id, base_path: scope.basePath })
+    if (!existing) {
+      send(404, { ok: false, error: "Not found" })
+      return
+    }
+    send(200, { ok: true, row: { ...(existing.payload || {}), id: existing.id } })
+    return
+  }
+
   if (itemMatch && method === "PATCH") {
     const scope = parseBookingScope(String(body?.basePath || ""))
     await assertCompanyAccess(user.uid, scope.companyId)

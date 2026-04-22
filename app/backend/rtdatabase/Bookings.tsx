@@ -627,10 +627,9 @@ export const addToWaitlist = async (
   }
 
   await set(newEntryRef, newEntry)
-  return {
-    ...newEntry,
-    id: newEntryRef.key || uuidv4(),
-  }
+  // Return the entry with the same ID that was persisted — avoids a second uuidv4() call
+  // that would produce an ID inconsistent with what is stored in the database.
+  return newEntry
 }
 
 // Update waitlist entry
@@ -803,29 +802,32 @@ export const fetchBookingStats = async (basePath: string, startDate?: string, en
     const bookings = await fetchBookings(basePath)
     let filteredBookings = bookings
 
-    // Filter by date range if provided
+    // Filter by date range if provided.
+    // Use string comparison against ISO date strings (YYYY-MM-DD) to avoid UTC/local
+    // timezone off-by-one errors that arise from `new Date("2024-01-15")` (UTC midnight).
     if (startDate || endDate) {
       filteredBookings = bookings.filter(booking => {
-        const bookingDate = new Date(booking.date)
-        const start = startDate ? new Date(startDate) : new Date(0)
-        const end = endDate ? new Date(endDate) : new Date()
-        return bookingDate >= start && bookingDate <= end
+        const bookingDate = String(booking.date || "")
+        if (startDate && bookingDate < startDate) return false
+        if (endDate && bookingDate > endDate) return false
+        return true
       })
     }
 
     const totalBookings = filteredBookings.length
-    const confirmedBookings = filteredBookings.filter(b => b.status === 'confirmed').length
-    const cancelledBookings = filteredBookings.filter(b => b.status === 'cancelled').length
-    const pendingBookings = filteredBookings.filter(b => b.status === 'pending').length
-    const noShowBookings = filteredBookings.filter(b => b.status === 'no-show').length
-    
-    const totalCovers = filteredBookings.reduce((sum, booking) => sum + (booking.guests || 0), 0)
+    // Compare status case-insensitively — data can arrive as "Confirmed", "confirmed", etc.
+    const confirmedBookings = filteredBookings.filter(b => (b.status || "").toLowerCase() === 'confirmed').length
+    const cancelledBookings = filteredBookings.filter(b => ["cancelled", "canceled"].includes((b.status || "").toLowerCase())).length
+    const pendingBookings = filteredBookings.filter(b => (b.status || "").toLowerCase() === 'pending').length
+    const noShowBookings = filteredBookings.filter(b => ["no-show", "no show"].includes((b.status || "").toLowerCase())).length
+
+    const totalCovers = filteredBookings.reduce((sum, booking) => sum + Number(booking.guests || booking.covers || booking.guestCount || 0), 0)
     const averagePartySize = totalBookings > 0 ? totalCovers / totalBookings : 0
 
     // Calculate peak hours
     const peakHours: Record<string, number> = {}
     filteredBookings.forEach(booking => {
-      const hour = booking.arrivalTime ? booking.arrivalTime.split(':')[0] : 'Unknown'
+      const hour = (booking.arrivalTime || "").split(':')[0] || 'Unknown'
       peakHours[hour] = (peakHours[hour] || 0) + 1
     })
 
@@ -836,10 +838,15 @@ export const fetchBookingStats = async (basePath: string, startDate?: string, en
       bookingsByType[type] = (bookingsByType[type] || 0) + 1
     })
 
-    // Calculate bookings by day
+    // Calculate bookings by day.
+    // Append T00:00:00 to force local-time parsing and avoid UTC off-by-one.
     const bookingsByDay: Record<string, number> = {}
     filteredBookings.forEach(booking => {
-      const day = new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long' })
+      const rawDate = String(booking.date || "")
+      const dateObj = rawDate ? new Date(`${rawDate}T00:00:00`) : null
+      const day = dateObj && !Number.isNaN(dateObj.getTime())
+        ? dateObj.toLocaleDateString('en-US', { weekday: 'long' })
+        : 'Unknown'
       bookingsByDay[day] = (bookingsByDay[day] || 0) + 1
     })
 
@@ -928,21 +935,28 @@ export const calculateBookingStats = async (
   let totalGuests = 0
 
   filteredBookings.forEach((booking) => {
-    if (booking.status === "Confirmed") stats.confirmedBookings++
-    else if (booking.status === "Pending") stats.pendingBookings++
-    else if (booking.status === "Cancelled") stats.cancelledBookings++
-    else if (booking.status === "No-Show") stats.noShowBookings++
+    // Normalize status to lowercase for case-insensitive comparison (data can be
+    // stored as "Confirmed", "confirmed", "CONFIRMED" etc. across providers).
+    const statusLower = (booking.status || "").toLowerCase()
+    if (statusLower === "confirmed") stats.confirmedBookings++
+    else if (statusLower === "pending") stats.pendingBookings++
+    else if (statusLower === "cancelled" || statusLower === "canceled") stats.cancelledBookings++
+    else if (statusLower === "no-show" || statusLower === "no show") stats.noShowBookings++
 
-    totalGuests += booking.guests
-    stats.totalCovers += booking.guests
+    // Guard against undefined/null guests to prevent NaN propagation.
+    const guests = Number(booking.guests || booking.covers || booking.guestCount || 0)
+    totalGuests += guests
+    stats.totalCovers += guests
 
-    const hour = booking.arrivalTime.split(":")[0]
+    // Guard against missing arrivalTime to prevent a runtime crash.
+    const hour = (booking.arrivalTime || "").split(":")[0] || "Unknown"
     stats.peakHours[hour] = (stats.peakHours[hour] || 0) + 1
 
     if (booking.bookingType) {
       stats.bookingsByType[booking.bookingType] = (stats.bookingsByType[booking.bookingType] || 0) + 1
     }
 
+    // Use string-based day derivation to avoid UTC/local timezone off-by-one.
     const dayOfWeek = new Date(booking.date).getDay()
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     const day = days[dayOfWeek]
