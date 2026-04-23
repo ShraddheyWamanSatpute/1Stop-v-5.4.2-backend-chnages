@@ -196,31 +196,6 @@ export const updateOpeningBalance: typeof firebaseProvider.updateOpeningBalance 
 
 export const deleteOpeningBalance: typeof firebaseProvider.deleteOpeningBalance = deleteOpeningBalanceShared
 
-// ===== FINANCE SETTINGS & INTEGRATIONS =====
-
-export const fetchFinanceSettings: typeof firebaseProvider.fetchFinanceSettings = async (path: string) => {
-  const result = await authedDataFetch(`/finance/settings${query({ path })}`, { method: "GET" })
-  return result || null
-}
-
-export const saveFinanceSettings: typeof firebaseProvider.saveFinanceSettings = async (path: string, settings: any) => {
-  const clean = Object.fromEntries(Object.entries(settings || {}).filter(([, v]) => v !== undefined))
-  await authedDataFetch(`/finance/settings`, {
-    method: "PUT",
-    body: JSON.stringify({ path, settings: { ...clean, updatedAt: Date.now() } }),
-  })
-}
-
-export const fetchFinanceIntegrations: typeof firebaseProvider.fetchFinanceIntegrations = async (path: string) => {
-  const result = await authedDataFetch(`/finance/integrations${query({ path })}`, { method: "GET" })
-  return result || {}
-}
-
-export const saveFinanceIntegration: typeof firebaseProvider.saveFinanceIntegration = async (path: string, integration: any) => {
-  if (!path || !integration?.id) return
-  const clean = Object.fromEntries(Object.entries(integration).filter(([, v]) => v !== undefined))
-  await authedDataFetch(`/finance/integrations/${encodeURIComponent(integration.id)}`, {
-    method: "PUT",
-    body: JSON.stringify({ path, integration: clean }),
-  })
-}
+// Settings and integrations fall through to the Firebase RTDB provider via `export * from`.
+// The Cloud Function does not expose a /finance/settings endpoint, so explicit overrides
+// here would result in 404 errors in Supabase mode. Firebase RTDB handles these correctly.
