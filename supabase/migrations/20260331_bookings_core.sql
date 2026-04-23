@@ -186,3 +186,20 @@ create table if not exists public.app_booking_preorder_profiles (
 
 create index if not exists app_booking_preorder_profiles_base_path_idx on public.app_booking_preorder_profiles (base_path);
 create index if not exists app_booking_preorder_profiles_company_idx on public.app_booking_preorder_profiles (company_id);
+
+create table if not exists public.app_booking_locations (
+  id text primary key,
+  company_id text not null,
+  site_id text null,
+  subsite_id text null,
+  base_path text not null,
+  name text not null,
+  status text null,
+  code text null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
+create index if not exists app_booking_locations_base_path_idx on public.app_booking_locations (base_path);
+create index if not exists app_booking_locations_company_idx on public.app_booking_locations (company_id);

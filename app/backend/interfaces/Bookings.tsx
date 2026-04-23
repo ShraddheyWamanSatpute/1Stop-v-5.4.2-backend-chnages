@@ -82,7 +82,7 @@ export interface Table {
 }
 
 export interface Booking {
-  totalAmount: any
+  totalAmount: number | null
   guestCount: number
   id: string
   firstName: string
@@ -141,7 +141,7 @@ export interface Booking {
 }
 
 export interface BookingStatus {
-  id?: string
+  id: string
   name: string
   description: string
   color: string

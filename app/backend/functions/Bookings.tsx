@@ -382,14 +382,10 @@ export const getFloorPlans = async (basePath: string): Promise<FloorPlan[]> => {
 
 export const saveFloorPlan = async (basePath: string, floorPlan: FloorPlan): Promise<FloorPlan> => {
   try {
-    if (floorPlan.id && floorPlan.id !== `fp_${Date.now()}`) {
-      // Update existing floor plan
-      await rtdb.updateFloorPlan(basePath, floorPlan.id, floorPlan)
-      return floorPlan
-    } else {
-      // Create new floor plan
-      return await rtdb.createFloorPlan(basePath, floorPlan)
-    }
+    // Delegate create-vs-update decision to the data layer's saveFloorPlan which
+    // uses the same `if (id)` check consistently — avoids the fragile
+    // `fp_${Date.now()}` pattern that misfired for any non-matching id format.
+    return await rtdb.saveFloorPlan(basePath, floorPlan)
   } catch (error) {
     debugWarn("Error saving floor plan:", error)
     throw error

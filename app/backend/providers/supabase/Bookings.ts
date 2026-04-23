@@ -254,6 +254,64 @@ const deleteEntityRow = async (entity: string, basePath: string, id: string) => 
   })
 }
 
+export const getBookingById: typeof firebaseProvider.getBookingById = async (basePath: string, bookingId: string) => {
+  if (!basePath || !bookingId) return null
+  const result = await authedDataFetch(
+    `/bookings/bookings/${encodeURIComponent(bookingId)}${query({ basePath })}`,
+    { method: "GET" },
+  )
+  const row = result?.row || result?.rows?.[0] || null
+  return row ? normalizeBooking(row) : null
+}
+
+export const submitPreorderResponses: typeof firebaseProvider.submitPreorderResponses = async (
+  basePath: string,
+  bookingId: string,
+  responses: any[],
+) => {
+  if (!basePath || !bookingId) throw new Error("Missing required parameters")
+  // Fetch the current booking payload to merge responses and update tags.
+  const result = await authedDataFetch(
+    `/bookings/bookings/${encodeURIComponent(bookingId)}${query({ basePath })}`,
+    { method: "GET" },
+  )
+  const existing = result?.row || result?.rows?.[0] || {}
+  const currentTags: string[] = Array.isArray(existing?.tags) ? existing.tags : []
+  const updatedTags = Array.from(
+    new Set(currentTags.filter((t: string) => t !== "Preorder Requested").concat(["Preorder Received"])),
+  )
+  // Write updated preorder responses and tags back via the standard PATCH endpoint.
+  await updateEntityRow("bookings", basePath, bookingId, {
+    preorder: { ...(existing?.preorder || {}), responses },
+    tags: updatedTags,
+  })
+}
+
+export const fetchLocations: typeof firebaseProvider.fetchLocations = async (basePath: string) => {
+  const rows = await fetchEntityRows("locations", basePath)
+  return rows as any[]
+}
+
+export const createLocation: typeof firebaseProvider.createLocation = async (basePath: string, locationData: any) => {
+  const row = await createEntityRow("locations", basePath, locationData)
+  return String(row?.id || "")
+}
+
+export const updateLocation: typeof firebaseProvider.updateLocation = async (
+  basePath: string,
+  locationId: string,
+  updates: any,
+) => {
+  await updateEntityRow("locations", basePath, locationId, updates)
+}
+
+export const deleteLocation: typeof firebaseProvider.deleteLocation = async (
+  basePath: string,
+  locationId: string,
+) => {
+  await deleteEntityRow("locations", basePath, locationId)
+}
+
 export const fetchBookings: typeof firebaseProvider.fetchBookings = async (basePath: string) => {
   const rows = await fetchEntityRows("bookings", basePath)
   return (rows as any[]).map(normalizeBooking)
