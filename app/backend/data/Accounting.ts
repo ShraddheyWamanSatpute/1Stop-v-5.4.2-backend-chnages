@@ -60,6 +60,9 @@ export const createPeriodLock: typeof firebaseProvider.createPeriodLock = ((...a
 export const updatePeriodLock: typeof firebaseProvider.updatePeriodLock = ((...args: Parameters<typeof firebaseProvider.updatePeriodLock>) =>
   resolveImplementation("updatePeriodLock")(...args)) as typeof firebaseProvider.updatePeriodLock
 
+export const deletePeriodLock: typeof firebaseProvider.deletePeriodLock = ((...args: Parameters<typeof firebaseProvider.deletePeriodLock>) =>
+  resolveImplementation("deletePeriodLock")(...args)) as typeof firebaseProvider.deletePeriodLock
+
 export const lockPeriod: typeof firebaseProvider.lockPeriod = ((...args: Parameters<typeof firebaseProvider.lockPeriod>) =>
   resolveImplementation("lockPeriod")(...args)) as typeof firebaseProvider.lockPeriod
 
