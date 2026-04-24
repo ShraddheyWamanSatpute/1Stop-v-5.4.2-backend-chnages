@@ -1,7 +1,7 @@
 "use client"
 
 import { supabase, SupabaseTable, getCompanyScope, parseLegacyPath } from "./client"
-import type { any } from "../interfaces/Settings"
+import type { PersonalSettings, PreferencesSettings, BusinessSettings, Settings, User } from "../interfaces/Settings"
 
 type AnyObj = Record<string, any>
 

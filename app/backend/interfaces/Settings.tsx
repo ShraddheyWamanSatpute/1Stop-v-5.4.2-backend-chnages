@@ -185,7 +185,7 @@ export interface PersonalSettings {
 
 // Preferences settings
 export interface PreferencesSettings {
-  theme: "light" | "dark";
+  theme: "light" | "dark" | "system";
   notifications: {
     email: boolean;
     push: boolean;
