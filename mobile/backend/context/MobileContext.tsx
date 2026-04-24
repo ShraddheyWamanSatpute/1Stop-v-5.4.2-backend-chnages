@@ -641,7 +641,7 @@ export const ESSProvider: React.FC<ESSProviderProps> = ({ children }) => {
 
     // Load emergency contacts (from employee record)
     loadEmergencyContacts()
-  }, [state.employeeId, state.emulatedEmployeeId, state.currentEmployee, hrState, loadEmergencyContacts])
+  }, [state.employeeId, state.emulatedEmployeeId, state.currentEmployee, state.isClockedIn, state.clockInTime, state.lastClockEvent, hrState, loadEmergencyContacts])
 
   // ============================================
   // INITIALIZATION EFFECT
@@ -805,7 +805,6 @@ export const ESSProvider: React.FC<ESSProviderProps> = ({ children }) => {
 
     // Check if employee is on leave (approved time off for today)
     const today = new Date().toISOString().split("T")[0]
-    const todayTimestamp = new Date(today).getTime()
     const isOnLeave = state.approvedTimeOff.some((timeOff) => {
       const startDate = new Date(timeOff.startDate).toISOString().split("T")[0]
       const endDate = new Date(timeOff.endDate).toISOString().split("T")[0]
@@ -918,7 +917,7 @@ export const ESSProvider: React.FC<ESSProviderProps> = ({ children }) => {
     })()
 
     return true
-  }, [addAttendance, state.employeeId, state.isClockedIn, state.approvedTimeOff, authState.currentCompanyId, hrState.schedules, updateSchedule])
+  }, [addAttendance, state.employeeId, state.isClockedIn, state.approvedTimeOff, authState.currentCompanyId, hrState.schedules, updateSchedule, loadFilteredData])
 
   // ============================================
   // CLOCK OUT - ✅ PATH FIXED
@@ -1066,7 +1065,7 @@ export const ESSProvider: React.FC<ESSProviderProps> = ({ children }) => {
     })()
 
     return true
-  }, [hrState.attendances, state.employeeId, state.isClockedIn, state.recentAttendance, authState.currentCompanyId, updateAttendance, updateSchedule, hrState.schedules])
+  }, [hrState.attendances, state.employeeId, state.isClockedIn, state.recentAttendance, authState.currentCompanyId, updateAttendance, updateSchedule, hrState.schedules, loadFilteredData])
 
   // ============================================
   // REQUEST TIME OFF - ✅ PATH FIXED
