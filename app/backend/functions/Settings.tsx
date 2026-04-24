@@ -70,9 +70,16 @@ export const getCurrentCompany = async (uid: string): Promise<UserCompany | unde
   try {
     const userData = await getUserData(uid);
     if (!userData || !userData.currentCompanyID) return undefined;
-    
-    const company = userData.companies.find(c => c.companyID === userData.currentCompanyID);
-    return company;
+
+    // userData.companies can be a map (Record<companyID, UserCompany>) or an array depending on schema version
+    const raw = userData.companies as any
+    const companies: UserCompany[] = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === "object"
+        ? (Object.values(raw) as UserCompany[])
+        : []
+
+    return companies.find(c => c.companyID === userData.currentCompanyID);
   } catch (error) {
     throw new Error(`Error getting current company: ${error}`);
   }
@@ -335,9 +342,9 @@ export const initializeUserSettings = async (uid: string, email: string): Promis
  */
 export async function login(email: string, password: string): Promise<UserProfile | null> {
   try {
-    const { uid } = await loginWithEmailAndPassword(email, password);
-    
-    // Fetch user profile from database
+    // Use signInWithEmail (not loginWithEmailAndPassword) so email verification is enforced
+    const { uid } = await signInWithEmail(email, password);
+
     const userProfile = await fetchUserProfile(uid);
     return userProfile;
   } catch (error) {

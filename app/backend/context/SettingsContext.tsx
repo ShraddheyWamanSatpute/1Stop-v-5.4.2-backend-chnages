@@ -985,7 +985,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
   // Utility methods
   // Track if settings have been loaded for current user/company to prevent unnecessary refreshes
   const settingsLoadedRef = React.useRef<string>("");
-  
+  // Mirror loading state in a ref so refreshSettings doesn't need state.loading in its dep array
+  const loadingRef = React.useRef<boolean>(state.loading);
+  React.useEffect(() => { loadingRef.current = state.loading; }, [state.loading]);
+
   const refreshSettings = useCallback(async () => {
     if (!state.auth.uid) return;
 
@@ -994,17 +997,17 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
 
     // Check if settings are already loaded for this user/company combination
     const loadKey = `${state.auth.uid}-${companyId}`;
-    if (settingsLoadedRef.current === loadKey && !state.loading) {
+    if (settingsLoadedRef.current === loadKey && !loadingRef.current) {
       // Settings already loaded, skip refresh to prevent flashing
       return;
     }
 
     // Don't set loading to true if we're already in the middle of loading
     // This prevents UI flashing from loading state changes
-    if (!state.loading) {
+    if (!loadingRef.current) {
       dispatch({ type: "SET_LOADING", payload: true });
     }
-    
+
     debugLog("⏳ SettingsContext: Starting load", { companyId });
 
     try {
@@ -1015,7 +1018,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
       // Check permission
       const hasPermission = await checkUserSettingsPermission(state.auth.uid, companyId);
       dispatch({ type: "SET_PERMISSION", payload: hasPermission });
-      
+
       // Mark as loaded
       settingsLoadedRef.current = loadKey;
     } catch (error) {
@@ -1027,7 +1030,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
-  }, [state.auth.uid, state.loading, getCurrentCompanyId]);
+  }, [state.auth.uid, getCurrentCompanyId]);
 
   const clearError = () => {
     dispatch({ type: "CLEAR_ERROR" });
@@ -1608,12 +1611,16 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
           currentCompanyID: state.user.currentCompanyID
         }));
 
-        // Cache full settings per user+company for instant Account/Security hydration on refresh
+        // Cache settings per user+company for instant hydration on refresh.
+        // Strip sensitive personal fields (bank, tax, NI) before writing to localStorage.
         if (state.auth.uid && state.user.currentCompanyID) {
           try {
             const cacheKey = `settingsCache:${state.auth.uid}:${state.user.currentCompanyID}`
+            const safePersonal = state.settings?.personal
+              ? (({ bankDetails: _b, niNumber: _n, taxCode: _t, ...rest }) => rest)(state.settings.personal as any)
+              : state.settings?.personal
             localStorage.setItem(cacheKey, JSON.stringify({
-              settings: state.settings,
+              settings: state.settings ? { ...state.settings, personal: safePersonal } : state.settings,
               hasPermission: state.hasPermission,
             }))
           } catch {

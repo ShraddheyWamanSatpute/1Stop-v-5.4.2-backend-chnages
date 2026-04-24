@@ -11,14 +11,25 @@ import {
 import { ref, set, get, update, onValue, off, remove } from 'firebase/database';
 import { db } from "../services/Firebase";
 import { APP_KEYS, getFunctionsBaseUrl } from "../../backend/config/keys"
-import { 
-  User, 
-  UserCompany, 
-  PersonalSettings, 
-  PreferencesSettings, 
-  BusinessSettings, 
+import {
+  User,
+  UserCompany,
+  PersonalSettings,
+  PreferencesSettings,
+  BusinessSettings,
   Settings
 } from "../interfaces/Settings";
+
+const stripUndefinedDeep = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj
+  if (Array.isArray(obj)) return obj.map((v) => (v === undefined ? null : stripUndefinedDeep(v)))
+  if (typeof obj !== "object") return obj
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, stripUndefinedDeep(v)])
+  )
+}
 
 // ========== FIREBASE AUTHENTICATION FUNCTIONS ==========
 
@@ -421,7 +432,7 @@ export const getUserData = async (uid: string): Promise<User | null> => {
 export const updateUserData = async (uid: string, userData: Partial<User>): Promise<void> => {
   try {
     const userRef = ref(db, `users/${uid}`);
-    await update(userRef, userData);
+    await update(userRef, { ...stripUndefinedDeep(userData), updatedAt: Date.now() });
   } catch (error) {
     throw new Error(`Error updating user data: ${error}`);
   }
@@ -643,7 +654,7 @@ export const fetchPersonalSettings = async (uid: string): Promise<PersonalSettin
 export const updatePersonalSettings = async (uid: string, personalSettings: Partial<PersonalSettings>): Promise<void> => {
   try {
     const personalRef = ref(db, `users/${uid}/settings/personal`);
-    await update(personalRef, personalSettings);
+    await update(personalRef, { ...stripUndefinedDeep(personalSettings), updatedAt: Date.now() });
   } catch (error) {
     throw new Error(`Error updating personal settings: ${error}`);
   }
@@ -782,7 +793,7 @@ export const fetchPreferencesSettings = async (uid: string): Promise<Preferences
 export const updatePreferencesSettings = async (uid: string, preferencesSettings: Partial<PreferencesSettings>): Promise<void> => {
   try {
     const preferencesRef = ref(db, `users/${uid}/settings/preferences`);
-    await update(preferencesRef, preferencesSettings);
+    await update(preferencesRef, { ...stripUndefinedDeep(preferencesSettings), updatedAt: Date.now() });
   } catch (error) {
     throw new Error(`Error updating preferences settings: ${error}`);
   }
@@ -811,23 +822,7 @@ export const updateTheme = async (uid: string, theme: "light" | "dark"): Promise
  */
 export const fetchCompanyBusinessSettings = async (companyId: string): Promise<BusinessSettings> => {
   try {
-    const businessRef = ref(db, `companies/${companyId}/businessInfo`);
-    const snapshot = await get(businessRef);
-    
-    if (snapshot.exists()) {
-      const businessData = snapshot.val();
-      return {
-        businessName: businessData.businessName || "",
-        businessAddress: businessData.businessAddress || "",
-        businessPhone: businessData.businessPhone || "",
-        businessEmail: businessData.businessEmail || "",
-        taxNumber: businessData.taxNumber || "",
-        businessLogo: businessData.businessLogo || "",
-        industry: businessData.industry || "",
-      };
-    }
-    
-    return {
+    const empty: BusinessSettings = {
       businessName: "",
       businessAddress: "",
       businessPhone: "",
@@ -836,6 +831,38 @@ export const fetchCompanyBusinessSettings = async (companyId: string): Promise<B
       businessLogo: "",
       industry: "",
     };
+
+    // Primary: read from the path where updateBusinessSettings writes
+    const newSnap = await get(ref(db, `companies/${companyId}/settings/business`));
+    if (newSnap.exists()) {
+      const d = newSnap.val();
+      return {
+        businessName: d.businessName || "",
+        businessAddress: d.businessAddress || "",
+        businessPhone: d.businessPhone || "",
+        businessEmail: d.businessEmail || "",
+        taxNumber: d.taxNumber || "",
+        businessLogo: d.businessLogo || d.logo || "",
+        industry: d.industry || "",
+      };
+    }
+
+    // Fallback: legacy /businessInfo path (older data written before migration)
+    const legacySnap = await get(ref(db, `companies/${companyId}/businessInfo`));
+    if (legacySnap.exists()) {
+      const d = legacySnap.val();
+      return {
+        businessName: d.businessName || "",
+        businessAddress: d.businessAddress || "",
+        businessPhone: d.businessPhone || "",
+        businessEmail: d.businessEmail || "",
+        taxNumber: d.taxNumber || "",
+        businessLogo: d.businessLogo || d.logo || "",
+        industry: d.industry || "",
+      };
+    }
+
+    return empty;
   } catch (error) {
     throw new Error(`Error fetching company business settings: ${error}`);
   }
@@ -878,7 +905,7 @@ export const fetchBusinessSettings = async (companyId: string): Promise<Business
 export const updateBusinessSettings = async (companyId: string, businessSettings: Partial<BusinessSettings>): Promise<void> => {
   try {
     const businessRef = ref(db, `companies/${companyId}/settings/business`);
-    await update(businessRef, businessSettings);
+    await update(businessRef, { ...stripUndefinedDeep(businessSettings), updatedAt: Date.now() });
   } catch (error) {
     throw new Error(`Error updating business settings: ${error}`);
   }
@@ -1115,12 +1142,7 @@ export async function saveIntegrationToPath(path: string, integrationId: string,
 export const updateUserProfileInDb = async (uid: string, updates: any): Promise<void> => {
   try {
     const userRef = ref(db, `users/${uid}`);
-    const updateData = {
-      ...updates,
-      updatedAt: Date.now()
-    };
-    
-    await update(userRef, updateData);
+    await update(userRef, { ...stripUndefinedDeep(updates), updatedAt: Date.now() });
   } catch (error) {
     throw new Error(`Error updating user profile: ${error}`);
   }
