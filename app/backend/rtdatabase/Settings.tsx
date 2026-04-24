@@ -624,26 +624,7 @@ export const fetchUserPersonalSettings = async (uid: string): Promise<PersonalSe
  * @returns Personal settings object
  */
 export const fetchPersonalSettings = async (uid: string): Promise<PersonalSettings> => {
-  try {
-    const personalRef = ref(db, `users/${uid}/settings/personal`);
-    const snapshot = await get(personalRef);
-    
-    if (snapshot.exists()) {
-      return snapshot.val() as PersonalSettings;
-    }
-    
-    // Return default personal settings if not found
-    return {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      jobTitle: "",
-      avatar: "",
-    };
-  } catch (error) {
-    throw new Error(`Error fetching personal settings: ${error}`);
-  }
+  return fetchUserPersonalSettings(uid);
 };
 
 /**
@@ -970,11 +951,18 @@ export const subscribeToSettings = (
   let currentSettings: Settings = {
     personal: {
       firstName: "",
+      middleName: "",
       lastName: "",
       email: "",
       phone: "",
       jobTitle: "",
       avatar: "",
+      address: { street: "", city: "", state: "", zipCode: "", country: "" },
+      bankDetails: { accountHolderName: "", bankName: "", accountNumber: "", sortCode: "", iban: "" },
+      niNumber: "",
+      taxCode: "",
+      emergencyContact: { name: "", relationship: "", phone: "", email: "" },
+      emergencyContacts: [],
     },
     preferences: {
       theme: "light",

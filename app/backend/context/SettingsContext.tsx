@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../services/Firebase";
-import { fetchAllInvites, updateInviteInDb, fetchUserCompaniesRaw, fetchUserDataRaw, setUserLastLogin } from "../providers/supabase/Settings";
+import { fetchAllInvites, updateInviteInDb, fetchUserCompaniesRaw, fetchUserDataRaw, setUserLastLogin } from "../data/Settings";
 import {
   User,
   UserCompany,
@@ -1110,6 +1110,22 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
             // Silent fail - cache is optional
           }
 
+          // Normalize companies stored as array OR map (Record<companyID, UserCompany>)
+          const normalizeUserCompanies = (companiesData: any): UserCompany[] => {
+            if (!companiesData) return []
+            if (Array.isArray(companiesData)) return companiesData as UserCompany[]
+            if (typeof companiesData === "object") {
+              return Object.entries(companiesData).map(([companyID, v]) => {
+                const value = (v && typeof v === "object") ? v : {}
+                return {
+                  ...(value as any),
+                  companyID: String((value as any)?.companyID || (value as any)?.companyId || companyID),
+                } as UserCompany
+              })
+            }
+            return []
+          }
+
           // Step 2 & 3: Load companies AND full user data in PARALLEL for maximum speed
           // OPTIMIZED: Use get() for one-time reads - Firebase SDK handles connection pooling
           try {
@@ -1117,25 +1133,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
               fetchUserCompaniesRaw(firebaseUser.uid),
               fetchUserDataRaw(firebaseUser.uid)
             ]);
-            
-            // Normalize companies data because it can be stored either as:
-            // - Array<UserCompany>
-            // - Record<companyID, UserCompanyLike> (map keyed by companyID)
-            const normalizeUserCompanies = (companiesData: any): UserCompany[] => {
-              if (!companiesData) return []
-              if (Array.isArray(companiesData)) return companiesData as UserCompany[]
-              if (typeof companiesData === "object") {
-                return Object.entries(companiesData).map(([companyID, v]) => {
-                  const value = (v && typeof v === "object") ? v : {}
-                  // Preserve an explicit companyID if present, otherwise inject key.
-                  return {
-                    ...(value as any),
-                    companyID: String((value as any)?.companyID || (value as any)?.companyId || companyID),
-                  } as UserCompany
-                })
-              }
-              return []
-            }
 
             // Process companies first (for instant dropdown)
             let companies: UserCompany[] = [];
@@ -1510,19 +1507,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
             try {
               const companiesData = await fetchUserCompaniesRaw(firebaseUser.uid);
               if (companiesData) {
-                const companies = ((): UserCompany[] => {
-                  if (Array.isArray(companiesData)) return companiesData as UserCompany[]
-                  if (companiesData && typeof companiesData === "object") {
-                    return Object.entries(companiesData).map(([companyID, v]) => {
-                      const value = (v && typeof v === "object") ? v : {}
-                      return {
-                        ...(value as any),
-                        companyID: String((value as any)?.companyID || (value as any)?.companyId || companyID),
-                      } as UserCompany
-                    })
-                  }
-                  return []
-                })();
+                const companies = normalizeUserCompanies(companiesData);
                 const sessionState = SessionPersistence.getSessionState();
                 const currentCompanyID = sessionState.companyID || (companies.length > 0 ? companies[0].companyID : undefined);
                 
