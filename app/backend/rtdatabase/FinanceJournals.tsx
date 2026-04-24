@@ -1,6 +1,6 @@
 import { ref, get, set, push, update, remove } from "firebase/database"
 import { db } from "../services/Firebase"
-import type { 
+import type {
   Journal,
   JournalLine,
   PeriodLock,
@@ -8,6 +8,17 @@ import type {
   OpeningBalance,
   Account
 } from "../interfaces/Finance"
+
+const stripUndefinedDeep = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj
+  if (Array.isArray(obj)) return obj.map(stripUndefinedDeep)
+  if (typeof obj !== "object") return obj
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, stripUndefinedDeep(v)])
+  )
+}
 
 // Journals - Manual and System Journal Entries
 export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
@@ -21,7 +32,7 @@ export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
     }
     return []
   } catch (error) {
@@ -93,7 +104,7 @@ export const updateJournal = async (basePath: string, journalId: string, updates
     }
 
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(journalRef, updatedFields)
@@ -158,7 +169,7 @@ export const postJournal = async (basePath: string, journalId: string, postedBy:
       const journalDate = new Date(journal.date)
       
       for (const lock of Object.values(locks) as PeriodLock[]) {
-        if (lock.is_active) {
+        if (lock.is_locked) {
           const lockStart = new Date(lock.period_start)
           const lockEnd = new Date(lock.period_end)
           
@@ -223,23 +234,20 @@ export const reverseJournal = async (basePath: string, journalId: string, revers
     
     const originalJournal = snapshot.val()
     
-    if (originalJournal.is_reversed) {
+    if (originalJournal.status === "reversed") {
       throw new Error("Journal has already been reversed")
     }
     
     // Create reversed journal lines
-    const reversedLines: JournalLine[] = originalJournal.journal_lines.map((line: JournalLine, index: number) => ({
-      id: `${journalId}-reversed-line-${index}`,
-      journal_id: `${journalId}-reversed`,
+    const reversedLines: JournalLine[] = originalJournal.journal_lines.map((line: JournalLine) => ({
       account_id: line.account_id,
-      debit: line.credit, // Swap debit and credit
+      debit: line.credit,
       credit: line.debit,
       description: `Reversal: ${line.description || ""}`,
       tax_rate_id: line.tax_rate_id,
       dimension_ids: line.dimension_ids,
-      created_at: new Date().toISOString(),
     }))
-    
+
     // Create reversal journal
     const reversedJournal: Omit<Journal, "id"> = {
       entity_id: originalJournal.entity_id,
@@ -251,20 +259,20 @@ export const reverseJournal = async (basePath: string, journalId: string, revers
       journal_lines: reversedLines,
       total_debit: originalJournal.total_credit,
       total_credit: originalJournal.total_debit,
-      is_reversed: false,
-      original_journal_id: journalId,
+      reverses_journal_id: journalId,
       created_by: reversedBy,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
-    
+
     const newReversedJournal = await createJournal(basePath, reversedJournal)
-    
+
     // Mark original as reversed
     await update(journalRef, {
-      is_reversed: true,
+      status: "reversed",
       reversed_by: reversedBy,
       reversed_at: new Date().toISOString(),
+      reversed_by_journal_id: newReversedJournal.id,
       updated_at: new Date().toISOString(),
     })
     
@@ -303,6 +311,8 @@ export const createPeriodLock = async (basePath: string, lock: Omit<PeriodLock, 
     const newLock: PeriodLock = {
       ...lock,
       id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
 
     await set(newLockRef, newLock)
@@ -316,7 +326,7 @@ export const createPeriodLock = async (basePath: string, lock: Omit<PeriodLock, 
 export const updatePeriodLock = async (basePath: string, lockId: string, updates: Partial<PeriodLock>): Promise<void> => {
   try {
     const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
-    await update(lockRef, updates)
+    await update(lockRef, { ...stripUndefinedDeep(updates), updated_at: new Date().toISOString() })
   } catch (error) {
     console.error("Error updating period lock:", error)
     throw error
@@ -441,7 +451,7 @@ export const updateOpeningBalance = async (basePath: string, balanceId: string, 
   try {
     const balanceRef = ref(db, `${basePath}/opening_balances/${balanceId}`)
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(balanceRef, updatedFields)

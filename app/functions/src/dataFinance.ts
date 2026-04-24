@@ -39,6 +39,12 @@ const stripUndefinedDeep = (value: any): any => {
   return value
 }
 
+const safeTimestamp = (raw: any, fallback: number): number => {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw
+  const parsed = Date.parse(String(raw || ""))
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 const normalizeBasePath = (raw: string): string => String(raw || "").trim().replace(/\/+$/, "")
 
 const parseFinanceScope = (rawBasePath: string): FinanceScope => {
@@ -167,9 +173,15 @@ const createEntityRow = (
   scope: FinanceScope,
   id: string,
   payload: any,
-  opts?: { name?: string; status?: string | null; code?: string | null },
+  opts?: { name?: string; status?: string | null; code?: string | null; existingCreatedAt?: number },
 ) => {
   const cleaned = stripUndefinedDeep(payload)
+  const now = Date.now()
+  // Guard against NaN: Date.parse("invalid") returns NaN which Supabase bigint rejects.
+  // Prefer the caller-supplied existingCreatedAt (preserved from the DB row on update).
+  const createdAt = opts?.existingCreatedAt !== undefined
+    ? opts.existingCreatedAt
+    : safeTimestamp(cleaned?.createdAt || cleaned?.created_at, now)
   return {
     id,
     company_id: scope.companyId,
@@ -183,8 +195,8 @@ const createEntityRow = (
       ...cleaned,
       id,
     },
-    created_at: Date.parse(cleaned?.createdAt || cleaned?.created_at || new Date().toISOString()),
-    updated_at: Date.now(),
+    created_at: createdAt,
+    updated_at: now,
   }
 }
 
@@ -196,12 +208,22 @@ const upsertEntity = async (
   opts?: { name?: string; status?: string | null; code?: string | null },
 ) => {
   const existing = await getSingleRow(table, { id, base_path: scope.basePath })
+  // Always stamp updatedAt so JSONB payload stays in sync with the DB-level updated_at column.
   const mergedPayload = {
     ...(existing?.payload || {}),
     ...stripUndefinedDeep(payload),
     id,
+    updatedAt: new Date().toISOString(),
   }
-  const row = createEntityRow(scope, id, mergedPayload, opts)
+  // Preserve original createdAt from the existing payload so it is never overwritten on update.
+  if (existing?.payload?.createdAt && !mergedPayload.createdAt) {
+    mergedPayload.createdAt = existing.payload.createdAt
+  }
+  const row = createEntityRow(scope, id, mergedPayload, {
+    ...opts,
+    // Carry the original DB-level created_at epoch so inserts keep the original timestamp.
+    existingCreatedAt: existing ? (existing.created_at ?? undefined) : undefined,
+  })
 
   if (!existing) {
     await insertRow(table, row)
@@ -493,7 +515,7 @@ export const handleFinanceDataRequest = async ({ req, res, path, body, user }: F
   }
 
   const itemMatch = pathname.match(
-    /^\/data\/finance\/(accounts|bills|contacts|budgets|journals|dimensions|periodLocks|openingBalances)\/([^/]+)$/,
+    /^\/data\/finance\/(accounts|transactions|bills|contacts|budgets|journals|dimensions|periodLocks|openingBalances)\/([^/]+)$/,
   )
   if (itemMatch && method === "PATCH") {
     const scope = parseFinanceScope(String(body?.basePath || ""))

@@ -707,12 +707,12 @@ export const fetchBankStatements = async (basePath: string, bankAccountId?: stri
         id,
         ...data,
       }))
-      
+
       if (bankAccountId) {
         statements = statements.filter((s) => s.bank_account_id === bankAccountId)
       }
-      
-      return statements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+      return statements.sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
     }
     return []
   } catch (error) {
@@ -728,7 +728,7 @@ export const createBankStatement = async (basePath: string, statement: Omit<Bank
     const id = newStatementRef.key as string
 
     const newStatement: BankStatement = {
-      ...statement,
+      ...(stripUndefinedDeep(statement) as Omit<BankStatement, "id">),
       id,
       reconciled: false,
       created_at: new Date().toISOString(),
@@ -745,10 +745,10 @@ export const createBankStatement = async (basePath: string, statement: Omit<Bank
 export const updateBankStatement = async (basePath: string, statementId: string, updates: Partial<BankStatement>): Promise<void> => {
   try {
     const statementRef = ref(db, `${basePath}/bank_statements/${statementId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(statementRef, updatedFields)
   } catch (error) {
     console.error("Error updating bank statement:", error)
@@ -808,10 +808,10 @@ export const createBankRule = async (basePath: string, rule: Omit<BankRule, "id"
 export const updateBankRule = async (basePath: string, ruleId: string, updates: Partial<BankRule>): Promise<void> => {
   try {
     const ruleRef = ref(db, `${basePath}/bank_rules/${ruleId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(ruleRef, updatedFields)
   } catch (error) {
     console.error("Error updating bank rule:", error)
@@ -841,7 +841,7 @@ export const fetchBankTransfers = async (basePath: string): Promise<BankTransfer
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
     }
     return []
   } catch (error) {
@@ -875,10 +875,10 @@ export const createBankTransfer = async (basePath: string, transfer: Omit<BankTr
 export const updateBankTransfer = async (basePath: string, transferId: string, updates: Partial<BankTransfer>): Promise<void> => {
   try {
     const transferRef = ref(db, `${basePath}/bank_transfers/${transferId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(transferRef, updatedFields)
   } catch (error) {
     console.error("Error updating bank transfer:", error)
@@ -939,10 +939,10 @@ export const createClearingAccount = async (basePath: string, clearing: Omit<Cle
 export const updateClearingAccount = async (basePath: string, clearingId: string, updates: Partial<ClearingAccount>): Promise<void> => {
   try {
     const clearingRef = ref(db, `${basePath}/clearing_accounts/${clearingId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(clearingRef, updatedFields)
   } catch (error) {
     console.error("Error updating clearing account:", error)
@@ -972,7 +972,7 @@ export const fetchFXRevaluations = async (basePath: string): Promise<FXRevaluati
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.revaluation_date).getTime() - new Date(a.revaluation_date).getTime())
+        .sort((a, b) => new Date(b.revaluation_date || "").getTime() - new Date(a.revaluation_date || "").getTime())
     }
     return []
   } catch (error) {
@@ -1006,10 +1006,10 @@ export const createFXRevaluation = async (basePath: string, fx: Omit<FXRevaluati
 export const updateFXRevaluation = async (basePath: string, fxId: string, updates: Partial<FXRevaluation>): Promise<void> => {
   try {
     const fxRef = ref(db, `${basePath}/fx_revaluations/${fxId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(fxRef, updatedFields)
   } catch (error) {
     console.error("Error updating FX revaluation:", error)
@@ -1029,7 +1029,7 @@ export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
     }
     return []
   } catch (error) {
@@ -1314,12 +1314,12 @@ export const reverseJournal = async (basePath: string, journalId: string, revers
 
     const newJournal = await createJournal(basePath, reversalJournal)
 
-    // Update original journal
+    // Update original journal — use reversed_by_journal_id to match the Journal interface field.
     await update(journalRef, {
       status: "reversed",
       reversed_by: reversedBy,
       reversed_at: new Date().toISOString(),
-      reversal_of_journal_id: newJournal.id,
+      reversed_by_journal_id: newJournal.id,
       updated_at: new Date().toISOString(),
     })
 
@@ -1373,10 +1373,10 @@ export const createPeriodLock = async (basePath: string, lock: Omit<PeriodLock, 
 export const updatePeriodLock = async (basePath: string, lockId: string, updates: Partial<PeriodLock>): Promise<void> => {
   try {
     const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(lockRef, updatedFields)
   } catch (error) {
     console.error("Error updating period lock:", error)
@@ -1437,10 +1437,10 @@ export const createDimension = async (basePath: string, dimension: Omit<Dimensio
 export const updateDimension = async (basePath: string, dimensionId: string, updates: Partial<Dimension>): Promise<void> => {
   try {
     const dimensionRef = ref(db, `${basePath}/dimensions/${dimensionId}`)
-    const updatedFields = {
+    const updatedFields = stripUndefinedDeep({
       ...updates,
       updated_at: new Date().toISOString(),
-    }
+    })
     await update(dimensionRef, updatedFields)
   } catch (error) {
     console.error("Error updating dimension:", error)
@@ -1528,8 +1528,9 @@ export const fetchExchangeRates = async (basePath: string, currencyCode?: string
         id,
         ...data,
       }))
-      return currencyCode 
-        ? rates.filter((rate) => rate.currency_code === currencyCode)
+      // ExchangeRate interface uses base_currency / quote_currency, not currency_code.
+      return currencyCode
+        ? rates.filter((rate) => rate.base_currency === currencyCode || rate.quote_currency === currencyCode)
         : rates
     }
     return []
@@ -1553,21 +1554,23 @@ export const createExchangeRate = async (basePath: string, exchangeRate: Omit<Ex
 
     await set(newRateRef, newRate)
     
-    // Update currency's current rate if this is the latest rate
-    const currencyRef = ref(db, `${basePath}/currencies/${exchangeRate.currency_code}`)
-    const currencySnapshot = await get(currencyRef)
-    if (currencySnapshot.exists()) {
-      const currency = currencySnapshot.val()
-      const existingRates = await fetchExchangeRates(basePath, exchangeRate.currency_code)
-      const latestRate = existingRates.sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      )[0]
-      
-      if (latestRate && latestRate.id === id) {
-        await update(currencyRef, {
-          rate: exchangeRate.rate,
-          lastUpdated: exchangeRate.date,
-        })
+    // Update currency's current rate if this is the latest rate.
+    // ExchangeRate interface uses quote_currency (not currency_code) and rate_date (not date).
+    const quoteCurrency = exchangeRate.quote_currency
+    if (quoteCurrency) {
+      const currencyRef = ref(db, `${basePath}/currencies/${quoteCurrency}`)
+      const currencySnapshot = await get(currencyRef)
+      if (currencySnapshot.exists()) {
+        const existingRates = await fetchExchangeRates(basePath, quoteCurrency)
+        const latestRate = existingRates.sort((a, b) =>
+          new Date(b.rate_date || "").getTime() - new Date(a.rate_date || "").getTime(),
+        )[0]
+        if (latestRate && latestRate.id === id) {
+          await update(currencyRef, {
+            rate: exchangeRate.rate,
+            lastUpdated: exchangeRate.rate_date,
+          })
+        }
       }
     }
     
@@ -2115,7 +2118,7 @@ export async function fetchFinanceSettings(path: string): Promise<any | null> {
 
 export async function saveFinanceSettings(path: string, settings: any): Promise<void> {
   try {
-    const clean = Object.fromEntries(Object.entries(settings || {}).filter(([, v]) => v !== undefined))
+    const clean = stripUndefinedDeep(settings || {})
     await update(ref(db, path), { ...clean, updatedAt: Date.now() })
   } catch (err: any) {
     console.error("Error saving finance settings:", err)

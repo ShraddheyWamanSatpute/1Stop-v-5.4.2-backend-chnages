@@ -8,6 +8,7 @@ import {
   deleteDimensionShared,
   deleteJournalShared,
   deleteOpeningBalanceShared,
+  deletePeriodLockShared,
   fetchDimensionsShared,
   fetchJournalsShared,
   fetchOpeningBalancesShared,
@@ -52,6 +53,8 @@ export const createPeriodLock: typeof firebaseProvider.createPeriodLock =
   createPeriodLockShared as typeof firebaseProvider.createPeriodLock
 
 export const updatePeriodLock: typeof firebaseProvider.updatePeriodLock = updatePeriodLockShared
+
+export const deletePeriodLock: typeof firebaseProvider.deletePeriodLock = deletePeriodLockShared
 
 export const lockPeriod: typeof firebaseProvider.lockPeriod = async (basePath, lockId, lockedBy) => {
   await updatePeriodLockShared(basePath, lockId, {

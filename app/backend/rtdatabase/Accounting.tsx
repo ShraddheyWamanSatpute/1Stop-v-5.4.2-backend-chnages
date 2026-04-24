@@ -10,6 +10,17 @@ import type {
   JournalEntry
 } from "../interfaces/Accounting"
 
+const stripUndefinedDeep = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj
+  if (Array.isArray(obj)) return obj.map(stripUndefinedDeep)
+  if (typeof obj !== "object") return obj
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, stripUndefinedDeep(v)])
+  )
+}
+
 // Journals
 export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
   try {
@@ -22,7 +33,7 @@ export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
     }
     return []
   } catch (error) {
@@ -100,7 +111,7 @@ export const updateJournal = async (basePath: string, journalId: string, updates
     }
 
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
 
@@ -304,7 +315,7 @@ export const reverseJournal = async (basePath: string, journalId: string, revers
       status: "reversed",
       reversed_by: reversedBy,
       reversed_at: new Date().toISOString(),
-      reversal_journal_id: reversalJournal.id,
+      reversed_by_journal_id: reversalJournal.id,
     })
 
     // Post the reversal journal
@@ -361,7 +372,7 @@ export const updateDimension = async (basePath: string, dimensionId: string, upd
   try {
     const dimensionRef = ref(db, `${basePath}/dimensions/${dimensionId}`)
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(dimensionRef, updatedFields)
@@ -425,12 +436,22 @@ export const updatePeriodLock = async (basePath: string, lockId: string, updates
   try {
     const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(lockRef, updatedFields)
   } catch (error) {
     console.error("Error updating period lock:", error)
+    throw error
+  }
+}
+
+export const deletePeriodLock = async (basePath: string, lockId: string): Promise<void> => {
+  try {
+    const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
+    await remove(lockRef)
+  } catch (error) {
+    console.error("Error deleting period lock:", error)
     throw error
   }
 }
@@ -506,7 +527,7 @@ export const updateOpeningBalance = async (basePath: string, balanceId: string, 
   try {
     const balanceRef = ref(db, `${basePath}/opening_balances/${balanceId}`)
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(balanceRef, updatedFields)

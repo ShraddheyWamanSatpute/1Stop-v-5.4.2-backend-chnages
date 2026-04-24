@@ -1,12 +1,23 @@
 import { ref, get, set, push, update, remove, query, orderByChild, equalTo } from "firebase/database"
 import { db } from "../services/Firebase"
-import type { 
+import type {
   Journal,
   JournalLine,
   Dimension,
   PeriodLock,
   OpeningBalance,
 } from "../interfaces/Finance"
+
+const stripUndefinedDeep = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj
+  if (Array.isArray(obj)) return obj.map(stripUndefinedDeep)
+  if (typeof obj !== "object") return obj
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, stripUndefinedDeep(v)])
+  )
+}
 
 // Journals
 export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
@@ -20,7 +31,7 @@ export const fetchJournals = async (basePath: string): Promise<Journal[]> => {
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
 
       // Fetch journal lines for each journal
       const journalLinesRef = ref(db, `${basePath}/journal_lines`)
@@ -158,7 +169,7 @@ export const updateJournal = async (basePath: string, journalId: string, updates
     }
 
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(journalRef, updatedFields)
@@ -365,6 +376,7 @@ export const reverseJournal = async (basePath: string, journalId: string, revers
       status: "reversed",
       reversed_by: reversedBy,
       reversed_at: new Date().toISOString(),
+      reversed_by_journal_id: reversalJournal.id,
       updated_at: new Date().toISOString(),
     })
 
@@ -420,7 +432,7 @@ export const updateDimension = async (basePath: string, dimensionId: string, upd
   try {
     const dimensionRef = ref(db, `${basePath}/dimensions/${dimensionId}`)
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(dimensionRef, updatedFields)
@@ -452,7 +464,7 @@ export const fetchPeriodLocks = async (basePath: string): Promise<PeriodLock[]> 
           id,
           ...data,
         }))
-        .sort((a, b) => new Date(b.period_start).getTime() - new Date(a.period_start).getTime())
+        .sort((a, b) => new Date(b.period_start || "").getTime() - new Date(a.period_start || "").getTime())
     }
     return []
   } catch (error) {
@@ -486,7 +498,7 @@ export const updatePeriodLock = async (basePath: string, lockId: string, updates
   try {
     const lockRef = ref(db, `${basePath}/period_locks/${lockId}`)
     const updatedFields = {
-      ...updates,
+      ...stripUndefinedDeep(updates),
       updated_at: new Date().toISOString(),
     }
     await update(lockRef, updatedFields)
@@ -564,7 +576,7 @@ export const updateOpeningBalance = async (basePath: string, balanceId: string, 
       const balance = balanceSnapshot.val()
       
       const updatedFields = {
-        ...updates,
+        ...stripUndefinedDeep(updates),
         updated_at: new Date().toISOString(),
       }
       await update(balanceRef, updatedFields)
