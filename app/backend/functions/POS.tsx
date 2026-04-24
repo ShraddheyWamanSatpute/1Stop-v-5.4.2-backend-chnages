@@ -340,7 +340,7 @@ export const deleteGroup = async (basePath: string, groupId: string): Promise<vo
 
 // ===== COURSES =====
 
-export const getCourses = async (basePath: string): Promise<any[]> => {
+export const getCourses = async (basePath: string): Promise<Course[]> => {
   return await rtPOS.fetchCourses(basePath)
 }
 

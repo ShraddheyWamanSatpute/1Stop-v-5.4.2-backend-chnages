@@ -11,12 +11,12 @@ import { dataCache } from "../utils/DataCache"
 import { createNotification } from "../functions/Notifications"
 import { debugLog, debugWarn } from "../utils/debugLog"
 import { db, ref, get, set } from "../services/Firebase"
-import { 
+import {
   fetchPOSSettings as fetchPOSSettingsFn,
   savePOSSettings as savePOSSettingsFn,
   fetchPOSIntegrations as fetchPOSIntegrationsFn,
   savePOSIntegration as savePOSIntegrationFn,
-} from "../providers/supabase/POS"
+} from "../data/POS"
 import type { 
   Bill, TillScreen, PaymentType, FloorPlan, Table, Card, 
   Discount, Promotion, Correction, BagCheckItem,
@@ -854,7 +854,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return []
     },
     'bills'
-  ), [])
+  ), [getPOSPaths])
   const fetchPaymentTypesCached = useMemo(() => createCachedFetcher(
     async () => {
       const paths = getPOSPaths()
@@ -869,7 +869,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return []
     },
     'paymentTypes'
-  ), [])
+  ), [getPOSPaths])
   const fetchTablesCached = useMemo(() => createCachedFetcher(
     async () => {
       const paths = getPOSPaths()
@@ -884,7 +884,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return []
     },
     'tables'
-  ), [])
+  ), [getPOSPaths])
 
   const refreshAll = useCallback(async () => {
     if (!rootBasePath) {
@@ -1154,23 +1154,21 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             discounts, corrections, bagCheckItems,
             locations, devices, ticketSales
           ]) => {
-            const bgPayload: any = {}
-            if (floorPlans && floorPlans.length !== posState.floorPlans.length) bgPayload.floorPlans = floorPlans || []
-            if (cards && cards.length !== posState.cards.length) bgPayload.cards = cards || []
-            if (courses && courses.length !== posState.courses.length) bgPayload.courses = courses || []
-            if (discounts && discounts.length !== posState.discounts.length) bgPayload.discounts = discounts || []
-            if (corrections && corrections.length !== posState.corrections.length) bgPayload.corrections = corrections || []
-            if (bagCheckItems && bagCheckItems.length !== posState.bagCheckItems.length) bgPayload.bagCheckItems = bagCheckItems || []
-            if (locations && locations.length !== posState.locations.length) bgPayload.locations = locations || []
-            if (devices && devices.length !== posState.devices.length) bgPayload.devices = devices || []
-            if (ticketSales && ticketSales.length !== posState.ticketSales.length) bgPayload.ticketSales = ticketSales || []
-            
-            if (Object.keys(bgPayload).length > 0) {
-              React.startTransition(() => {
-                dispatch({ type: "PATCH_DATA", payload: bgPayload })
-              })
+            const bgPayload: any = {
+              floorPlans: floorPlans || [],
+              cards: cards || [],
+              courses: courses || [],
+              discounts: discounts || [],
+              corrections: corrections || [],
+              bagCheckItems: bagCheckItems || [],
+              locations: locations || [],
+              devices: devices || [],
+              ticketSales: ticketSales || [],
             }
-            // Background data loaded silently
+            
+            React.startTransition(() => {
+              dispatch({ type: "PATCH_DATA", payload: bgPayload })
+            })
           }).catch(error => {
             debugWarn('Error loading background POS data:', error)
           })
@@ -3304,6 +3302,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshDevices,
     refreshTickets,
     refreshTicketSales,
+    refreshPaymentTransactions,
     refreshGroups,
     refreshCourses,
     createBill,

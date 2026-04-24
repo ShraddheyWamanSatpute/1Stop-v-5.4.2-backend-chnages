@@ -109,7 +109,7 @@ export const createBill = async (basePath: string, bill: Omit<Bill, "id" | "crea
     updatedAt: now,
   }
   
-  await set(newBillRef, newBill)
+  await set(newBillRef, stripUndefined(newBill))
   return newBill as Bill
 }
 
@@ -117,11 +117,11 @@ export const updateBill = async (basePath: string, billId: string, updates: Part
   if (!basePath || !billId) throw new Error("Missing required parameters")
   
   const billRef = ref(db, `${basePath}/bills/${billId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(billRef, updatedFields)
 }
 
@@ -169,7 +169,7 @@ export const createTillScreen = async (basePath: string, tillScreen: Omit<TillSc
     updatedAt: now,
   }
   
-  await set(newTillScreenRef, newTillScreen)
+  await set(newTillScreenRef, stripUndefined(newTillScreen))
   return newTillScreen as TillScreen
 }
 
@@ -177,11 +177,11 @@ export const updateTillScreen = async (basePath: string, tillScreenId: string, u
   if (!basePath || !tillScreenId) throw new Error("Missing required parameters")
   
   const tillScreenRef = ref(db, `${basePath}/tillscreens/${tillScreenId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(tillScreenRef, updatedFields)
 }
 
@@ -289,7 +289,7 @@ export const createFloorPlan = async (basePath: string, floorPlan: Omit<FloorPla
     updatedAt: now,
   }
   
-  await set(newFloorPlanRef, newFloorPlan)
+  await set(newFloorPlanRef, stripUndefined(newFloorPlan))
   return newFloorPlan as FloorPlan
 }
 
@@ -297,11 +297,11 @@ export const updateFloorPlan = async (basePath: string, floorPlanId: string, upd
   if (!basePath || !floorPlanId) throw new Error("Missing required parameters")
   
   const floorPlanRef = ref(db, `${basePath}/floorplans/${floorPlanId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(floorPlanRef, updatedFields)
 }
 
@@ -349,7 +349,7 @@ export const createTable = async (basePath: string, table: Omit<Table, "id" | "c
     updatedAt: now,
   }
   
-  await set(newTableRef, newTable)
+  await set(newTableRef, stripUndefined(newTable))
   return newTable as Table
 }
 
@@ -357,11 +357,11 @@ export const updateTable = async (basePath: string, tableId: string, updates: Pa
   if (!basePath || !tableId) throw new Error("Missing required parameters")
   
   const tableRef = ref(db, `${basePath}/tables/${tableId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(tableRef, updatedFields)
 }
 
@@ -409,7 +409,7 @@ export const createDiscount = async (basePath: string, discount: Omit<Discount, 
     updatedAt: now,
   }
   
-  await set(newDiscountRef, newDiscount)
+  await set(newDiscountRef, stripUndefined(newDiscount))
   return newDiscount as Discount
 }
 
@@ -417,11 +417,11 @@ export const updateDiscount = async (basePath: string, discountId: string, updat
   if (!basePath || !discountId) throw new Error("Missing required parameters")
   
   const discountRef = ref(db, `${basePath}/discounts/${discountId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(discountRef, updatedFields)
 }
 
@@ -469,7 +469,7 @@ export const createPromotion = async (basePath: string, promotion: Omit<Promotio
     updatedAt: now,
   }
   
-  await set(newPromotionRef, newPromotion)
+  await set(newPromotionRef, stripUndefined(newPromotion))
   return newPromotion as Promotion
 }
 
@@ -477,11 +477,11 @@ export const updatePromotion = async (basePath: string, promotionId: string, upd
   if (!basePath || !promotionId) throw new Error("Missing required parameters")
   
   const promotionRef = ref(db, `${basePath}/promotions/${promotionId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(promotionRef, updatedFields)
 }
 
@@ -529,7 +529,7 @@ export const createCorrection = async (basePath: string, correction: Omit<Correc
     updatedAt: now,
   }
   
-  await set(newCorrectionRef, newCorrection)
+  await set(newCorrectionRef, stripUndefined(newCorrection))
   return newCorrection as Correction
 }
 
@@ -537,11 +537,11 @@ export const updateCorrection = async (basePath: string, correctionId: string, u
   if (!basePath || !correctionId) throw new Error("Missing required parameters")
   
   const correctionRef = ref(db, `${basePath}/corrections/${correctionId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(correctionRef, updatedFields)
 }
 
@@ -589,7 +589,7 @@ export const createBagCheckItem = async (basePath: string, bagCheckItem: Omit<Ba
     updatedAt: now,
   }
   
-  await set(newBagCheckItemRef, newBagCheckItem)
+  await set(newBagCheckItemRef, stripUndefined(newBagCheckItem))
   return newBagCheckItem as BagCheckItem
 }
 
@@ -597,11 +597,11 @@ export const updateBagCheckItem = async (basePath: string, bagCheckItemId: strin
   if (!basePath || !bagCheckItemId) throw new Error("Missing required parameters")
   
   const bagCheckItemRef = ref(db, `${basePath}/bagCheckItems/${bagCheckItemId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(bagCheckItemRef, updatedFields)
 }
 
@@ -634,12 +634,7 @@ export const updateBagCheckConfig = async (basePath: string, config: Partial<Bag
   if (!basePath) throw new Error("Base path is missing")
   
   const bagCheckConfigRef = ref(db, `${basePath}/bagcheck/config`)
-  const updatedFields = {
-    ...config,
-    updatedAt: Date.now(),
-  }
-  
-  await update(bagCheckConfigRef, updatedFields)
+  await update(bagCheckConfigRef, stripUndefined({ ...config, updatedAt: Date.now() }))
 }
 
 // ===== LOCATIONS =====
@@ -679,7 +674,7 @@ export const createLocation = async (basePath: string, location: Omit<Location, 
     updatedAt: now,
   }
   
-  await set(newLocationRef, newLocation)
+  await set(newLocationRef, stripUndefined(newLocation))
   return newLocation as Location
 }
 
@@ -687,11 +682,11 @@ export const updateLocation = async (basePath: string, locationId: string, updat
   if (!basePath || !locationId) throw new Error("Missing required parameters")
   
   const locationRef = ref(db, `${basePath}/locations/${locationId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(locationRef, updatedFields)
 }
 
@@ -799,7 +794,7 @@ export const createPaymentIntegration = async (basePath: string, paymentIntegrat
     updatedAt: now,
   }
   
-  await set(newPaymentIntegrationRef, newPaymentIntegration)
+  await set(newPaymentIntegrationRef, stripUndefined(newPaymentIntegration))
   return newPaymentIntegration as PaymentIntegration
 }
 
@@ -807,11 +802,11 @@ export const updatePaymentIntegration = async (basePath: string, paymentIntegrat
   if (!basePath || !paymentIntegrationId) throw new Error("Missing required parameters")
   
   const paymentIntegrationRef = ref(db, `${basePath}/paymentIntegrations/${paymentIntegrationId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(paymentIntegrationRef, updatedFields)
 }
 
@@ -859,7 +854,7 @@ export const createTicket = async (basePath: string, ticket: Omit<Ticket, "id" |
     updatedAt: now,
   }
   
-  await set(newTicketRef, newTicket)
+  await set(newTicketRef, stripUndefined(newTicket))
   return newTicket as Ticket
 }
 
@@ -867,11 +862,11 @@ export const updateTicket = async (basePath: string, ticketId: string, updates: 
   if (!basePath || !ticketId) throw new Error("Missing required parameters")
   
   const ticketRef = ref(db, `${basePath}/tickets/${ticketId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(ticketRef, updatedFields)
 }
 
@@ -919,7 +914,7 @@ export const createTicketSale = async (basePath: string, ticketSale: Omit<Ticket
     updatedAt: now,
   }
   
-  await set(newTicketSaleRef, newTicketSale)
+  await set(newTicketSaleRef, stripUndefined(newTicketSale))
   return newTicketSale as TicketSale
 }
 
@@ -927,11 +922,11 @@ export const updateTicketSale = async (basePath: string, ticketSaleId: string, u
   if (!basePath || !ticketSaleId) throw new Error("Missing required parameters")
   
   const ticketSaleRef = ref(db, `${basePath}/ticketSales/${ticketSaleId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(ticketSaleRef, updatedFields)
 }
 
@@ -976,7 +971,7 @@ export const createPaymentTransaction = async (
   const newTxRef = push(txRef)
   const id = newTxRef.key || uuidv4()
   const now = Date.now()
-  const newTx: PaymentTransaction = { ...tx, id, createdAt: now, updatedAt: now }
+  const newTx: PaymentTransaction = stripUndefined({ ...tx, id, createdAt: now, updatedAt: now }) as PaymentTransaction
   await set(newTxRef, newTx)
   return newTx
 }
@@ -988,7 +983,7 @@ export const updatePaymentTransaction = async (
 ): Promise<void> => {
   if (!basePath || !txId) throw new Error("Missing required parameters")
   const txRef = ref(db, `${basePath}/paymentTransactions/${txId}`)
-  await update(txRef, { ...updates, updatedAt: Date.now() })
+  await update(txRef, stripUndefined({ ...updates, updatedAt: Date.now() }))
 }
 
 export const deletePaymentTransaction = async (basePath: string, txId: string): Promise<void> => {
@@ -1033,7 +1028,7 @@ export const createSale = async (basePath: string, sale: Omit<Sale, "id" | "crea
     createdAt: now,
   }
   
-  await set(newSaleRef, newSale)
+  await set(newSaleRef, stripUndefined(newSale))
   return newSale as Sale
 }
 
@@ -1084,7 +1079,7 @@ export const createGroup = async (basePath: string, group: Omit<Group, "id" | "c
     updatedAt: now,
   }
   
-  await set(newGroupRef, newGroup)
+  await set(newGroupRef, stripUndefined(newGroup))
   return newGroup as Group
 }
 
@@ -1092,11 +1087,11 @@ export const updateGroup = async (basePath: string, groupId: string, updates: Pa
   if (!basePath || !groupId) throw new Error("Missing required parameters")
   
   const groupRef = ref(db, `${basePath}/groups/${groupId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(groupRef, updatedFields)
 }
 
@@ -1144,7 +1139,7 @@ export const createCourse = async (basePath: string, course: Omit<Course, "id" |
     updatedAt: now,
   }
   
-  await set(newCourseRef, newCourse)
+  await set(newCourseRef, stripUndefined(newCourse))
   return newCourse as Course
 }
 
@@ -1152,11 +1147,11 @@ export const updateCourse = async (basePath: string, courseId: string, updates: 
   if (!basePath || !courseId) throw new Error("Missing required parameters")
   
   const courseRef = ref(db, `${basePath}/courses/${courseId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(courseRef, updatedFields)
 }
 
@@ -1204,7 +1199,7 @@ export const createCard = async (basePath: string, card: Omit<Card, "id" | "crea
     updatedAt: now,
   }
   
-  await set(newCardRef, newCard)
+  await set(newCardRef, stripUndefined(newCard))
   return newCard as Card
 }
 
@@ -1212,11 +1207,11 @@ export const updateCard = async (basePath: string, cardId: string, updates: Part
   if (!basePath || !cardId) throw new Error("Missing required parameters")
   
   const cardRef = ref(db, `${basePath}/cards/${cardId}`)
-  const updatedFields = {
+  const updatedFields = stripUndefined({
     ...updates,
     updatedAt: Date.now(),
-  }
-  
+  })
+
   await update(cardRef, updatedFields)
 }
 
@@ -1241,7 +1236,7 @@ export async function fetchPOSSettings(path: string): Promise<any | null> {
 
 export async function savePOSSettings(path: string, settings: any): Promise<void> {
   try {
-    await update(ref(db, path), { ...settings, updatedAt: Date.now() })
+    await update(ref(db, path), stripUndefined({ ...settings, updatedAt: Date.now() }))
   } catch (err: any) {
     console.error("Error saving POS settings:", err)
     throw err
