@@ -86,52 +86,24 @@ export const filterUpcomingShifts = (
   employeeId: string,
   limit?: number
 ): Schedule[] => {
-  if (!schedules || !employeeId) {
-    console.log('[filterUpcomingShifts] No schedules or employeeId:', { schedulesCount: schedules?.length || 0, employeeId })
-    return []
-  }
-  
+  if (!schedules || !employeeId) return []
+
   // Filter by employee first (matching EmployeeSelfService logic: s.employeeId === currentEmployee.id)
   const employeeSchedules = schedules.filter((s: any) => {
-    // Handle both employeeId and employeeID field names (like ScheduleManager does)
     const scheduleEmployeeId = s.employeeId || s.employeeID || (s as any).employeeId
-    const matches = String(scheduleEmployeeId) === String(employeeId)
-    
-    if (!matches && scheduleEmployeeId && schedules.indexOf(s) < 3) {
-      // Debug: log mismatches for first few schedules
-      console.log('[filterUpcomingShifts] Schedule employeeId mismatch:', {
-        scheduleId: s.id,
-        scheduleEmployeeId,
-        targetEmployeeId: employeeId,
-        scheduleEmployeeIdType: typeof scheduleEmployeeId,
-        targetEmployeeIdType: typeof employeeId
-      })
-    }
-    
-    return matches
+    return String(scheduleEmployeeId) === String(employeeId)
   })
-  
-  console.log('[filterUpcomingShifts] Employee schedules found:', {
-    totalSchedules: schedules.length,
-    employeeSchedulesCount: employeeSchedules.length,
-    employeeId
-  })
-  
+
   if (employeeSchedules.length === 0) return []
-  
+
   // Filter shifts - show scheduled, confirmed, and completed shifts (exclude cancelled and draft)
   // and only include shifts that are today or in the future.
   const todayKey = new Date().toISOString().split("T")[0]
   const filtered = employeeSchedules
     .filter((s) => {
       const scheduleDate = normalizeDate(s.date)
-      if (!scheduleDate) {
-        console.warn('[filterUpcomingShifts] Invalid date in schedule:', s.id, s.date)
-        return false
-      }
-      // Only include today or future
+      if (!scheduleDate) return false
       if (scheduleDate < todayKey) return false
-      // Show scheduled, confirmed, and completed shifts (exclude cancelled, draft, and pending)
       return s.status === "scheduled" || s.status === "confirmed" || s.status === "completed"
     })
     .sort((a, b) => {
@@ -139,12 +111,7 @@ export const filterUpcomingShifts = (
       const dateB = normalizeDate(b.date) || ""
       return dateA.localeCompare(dateB)
     })
-  
-  console.log('[filterUpcomingShifts] Final filtered shifts:', {
-    count: filtered.length,
-    sampleDates: filtered.slice(0, 3).map(s => normalizeDate(s.date))
-  })
-  
+
   return limit ? filtered.slice(0, limit) : filtered
 }
 
@@ -374,7 +341,11 @@ export const determineClockStatus = (attendances: Attendance[]): {
     clockInTime: isClockedIn ? new Date(todayAttendance.clockIn).getTime() : null,
     lastClockEvent: {
       type: isClockedIn ? ("in" as const) : ("out" as const),
-      timestamp: todayAttendance.date,
+      timestamp: isClockedIn
+        ? new Date(todayAttendance.clockIn).getTime()
+        : todayAttendance.clockOut
+          ? new Date(todayAttendance.clockOut).getTime()
+          : todayAttendance.date,
       location: locationData,
     },
   }

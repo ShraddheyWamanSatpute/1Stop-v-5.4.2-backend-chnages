@@ -36,9 +36,9 @@ export const uploadFile = async (file: File, folder: string = "files"): Promise<
       reject(new Error("Storage is not available"));
       return;
     }
-    const storageRef = ref(storage, `${folder}/${file.name}`);
-    uploadBytes(storageRef, file)
-      .then(() => getDownloadURL(storageRef))
+    const fileRef = ref1(storage, `${folder}/${Date.now()}_${file.name}`);
+    uploadBytes(fileRef, file)
+      .then(() => getDownloadURL(fileRef))
       .then((url) => resolve(url))
       .catch((error) => reject(error));
   });

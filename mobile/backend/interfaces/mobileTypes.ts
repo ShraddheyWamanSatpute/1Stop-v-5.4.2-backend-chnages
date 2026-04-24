@@ -197,6 +197,7 @@ export interface ESSTimeOffRequest {
   startDate: string
   endDate: string
   totalDays: number
+  reason?: string
   notes?: string
 }
 

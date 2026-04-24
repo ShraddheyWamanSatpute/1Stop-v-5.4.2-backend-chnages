@@ -64,12 +64,7 @@ export const ESSSessionPersistence = {
   shouldRestoreSession(): boolean {
     const session = this.getSession()
     if (!session) return false
-    
-    return (
-      session.isActive === true &&
-      Date.now() < session.expiresAt &&
-      !!session.companyId
-    )
+    return session.isActive === true && !!session.companyId
   },
 
   /**
@@ -131,7 +126,7 @@ export const ESSSessionPersistence = {
    */
   getLastPath(): string {
     const session = this.getSession()
-    return session?.lastPath || "/ESS/Dashboard"
+    return session?.lastPath || getESSDashboardPath()
   },
 
   /**
